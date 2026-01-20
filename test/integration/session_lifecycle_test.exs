@@ -12,43 +12,25 @@ defmodule AgentSessionManager.Integration.SessionLifecycleTest do
   - Cancellation flows
   - Multi-run sessions
 
-  All tests use mock adapters and are deterministic and parallel-safe.
+  Uses Supertester for robust async testing and process isolation.
   """
 
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Adapters.InMemorySessionStore
-  alias AgentSessionManager.Core.{Error, Run, Session}
-  alias AgentSessionManager.Ports.SessionStore
   alias AgentSessionManager.SessionManager
-  alias AgentSessionManager.Test.{Fixtures, MockProviderAdapter}
 
   # ============================================================================
   # Test Setup
   # ============================================================================
 
-  setup do
-    {:ok, store} = InMemorySessionStore.start_link()
+  setup ctx do
+    {:ok, store} = setup_test_store(ctx)
+    {:ok, adapter} = setup_test_adapter(ctx)
 
-    {:ok, adapter} =
-      MockProviderAdapter.start_link(
-        capabilities: Fixtures.provider_capabilities(:full_claude),
-        execution_mode: :instant
-      )
-
-    on_exit(fn ->
-      for pid <- [store, adapter] do
-        if is_pid(pid) and Process.alive?(pid) do
-          try do
-            GenServer.stop(pid)
-          catch
-            :exit, _ -> :ok
-          end
-        end
-      end
-    end)
-
-    {:ok, store: store, adapter: adapter}
+    ctx
+    |> Map.put(:store, store)
+    |> Map.put(:adapter, adapter)
   end
 
   # ============================================================================
@@ -142,7 +124,10 @@ defmodule AgentSessionManager.Integration.SessionLifecycleTest do
       assert result.output.content == "Hello! How can I help you?"
 
       # Collect streamed events
-      events = collect_events_with_timeout(100)
+      events = collect_messages(100)
+
+      # Filter event messages
+      events = for {:event, event} <- events, do: event
 
       # Should have streaming events
       event_types = Enum.map(events, & &1.type)
@@ -464,17 +449,15 @@ defmodule AgentSessionManager.Integration.SessionLifecycleTest do
           store
         end
 
-      # Create sessions concurrently
-      tasks =
-        for {store, idx} <- Enum.with_index(stores) do
-          Task.async(fn ->
-            SessionManager.start_session(store, adapter, %{
-              agent_id: "concurrent-agent-#{idx}"
-            })
-          end)
-        end
+      # Create sessions concurrently using supertester's run_concurrent helper
+      results =
+        run_concurrent(length(stores), fn idx ->
+          store = Enum.at(stores, idx - 1)
 
-      results = Task.await_many(tasks, 5000)
+          SessionManager.start_session(store, adapter, %{
+            agent_id: "concurrent-agent-#{idx}"
+          })
+        end)
 
       # All should succeed
       assert Enum.all?(results, fn
@@ -492,11 +475,7 @@ defmodule AgentSessionManager.Integration.SessionLifecycleTest do
 
       # Cleanup
       for store <- stores do
-        try do
-          InMemorySessionStore.stop(store)
-        catch
-          :exit, _ -> :ok
-        end
+        safe_stop(store)
       end
     end
 
@@ -506,15 +485,11 @@ defmodule AgentSessionManager.Integration.SessionLifecycleTest do
 
       {:ok, _} = SessionManager.activate_session(store, session.id)
 
-      # Create runs concurrently
-      tasks =
-        for i <- 1..10 do
-          Task.async(fn ->
-            SessionManager.start_run(store, adapter, session.id, %{prompt: "Concurrent #{i}"})
-          end)
-        end
-
-      results = Task.await_many(tasks, 5000)
+      # Create runs concurrently using supertester's run_concurrent helper
+      results =
+        run_concurrent(10, fn i ->
+          SessionManager.start_run(store, adapter, session.id, %{prompt: "Concurrent #{i}"})
+        end)
 
       # All should succeed
       assert Enum.all?(results, fn
@@ -525,24 +500,6 @@ defmodule AgentSessionManager.Integration.SessionLifecycleTest do
       # Verify all runs are stored
       {:ok, all_runs} = SessionStore.list_runs(store, session.id)
       assert length(all_runs) == 10
-    end
-  end
-
-  # ============================================================================
-  # Helpers
-  # ============================================================================
-
-  defp collect_events_with_timeout(timeout_ms) do
-    collect_events([], timeout_ms)
-  end
-
-  defp collect_events(acc, timeout_ms) do
-    receive do
-      {:event, event} ->
-        collect_events(acc ++ [event], timeout_ms)
-    after
-      timeout_ms ->
-        acc
     end
   end
 end

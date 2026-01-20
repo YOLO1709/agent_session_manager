@@ -290,10 +290,11 @@ defmodule AgentSessionManager.AuditLogger do
     # Store the store reference in a process-accessible way
     :persistent_term.put({__MODULE__, :store}, store)
 
+    # Use fully qualified MFA to avoid "local function" telemetry warning
     :telemetry.attach_many(
       @telemetry_handler_id,
       events,
-      &handle_telemetry_event/4,
+      &__MODULE__.handle_telemetry_event/4,
       nil
     )
 
@@ -316,12 +317,14 @@ defmodule AgentSessionManager.AuditLogger do
   # Private: Telemetry Handler
   # ============================================================================
 
-  defp handle_telemetry_event(
-         [:agent_session_manager, :run, :start],
-         _measurements,
-         metadata,
-         _config
-       ) do
+  # Public to avoid telemetry "local function" warning - called by telemetry library
+  @doc false
+  def handle_telemetry_event(
+        [:agent_session_manager, :run, :start],
+        _measurements,
+        metadata,
+        _config
+      ) do
     store = get_store()
     run = Map.get(metadata, :run)
     session = Map.get(metadata, :session)
@@ -331,12 +334,12 @@ defmodule AgentSessionManager.AuditLogger do
     end
   end
 
-  defp handle_telemetry_event(
-         [:agent_session_manager, :run, :stop],
-         measurements,
-         metadata,
-         _config
-       ) do
+  def handle_telemetry_event(
+        [:agent_session_manager, :run, :stop],
+        measurements,
+        metadata,
+        _config
+      ) do
     store = get_store()
     run = Map.get(metadata, :run)
     session = Map.get(metadata, :session)
@@ -352,12 +355,12 @@ defmodule AgentSessionManager.AuditLogger do
     end
   end
 
-  defp handle_telemetry_event(
-         [:agent_session_manager, :run, :exception],
-         _measurements,
-         metadata,
-         _config
-       ) do
+  def handle_telemetry_event(
+        [:agent_session_manager, :run, :exception],
+        _measurements,
+        metadata,
+        _config
+      ) do
     store = get_store()
     run = Map.get(metadata, :run)
     session = Map.get(metadata, :session)
@@ -372,12 +375,12 @@ defmodule AgentSessionManager.AuditLogger do
     end
   end
 
-  defp handle_telemetry_event(
-         [:agent_session_manager, :usage, :report],
-         measurements,
-         metadata,
-         _config
-       ) do
+  def handle_telemetry_event(
+        [:agent_session_manager, :usage, :report],
+        measurements,
+        metadata,
+        _config
+      ) do
     store = get_store()
     session = Map.get(metadata, :session)
 
@@ -386,7 +389,7 @@ defmodule AgentSessionManager.AuditLogger do
     end
   end
 
-  defp handle_telemetry_event(_event, _measurements, _metadata, _config) do
+  def handle_telemetry_event(_event, _measurements, _metadata, _config) do
     :ok
   end
 

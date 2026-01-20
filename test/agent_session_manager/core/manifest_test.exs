@@ -1,5 +1,6 @@
 defmodule AgentSessionManager.Core.ManifestTest do
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
+
   alias AgentSessionManager.Core.Capability
   alias AgentSessionManager.Core.Manifest
 

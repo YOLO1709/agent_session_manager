@@ -1,5 +1,6 @@
 defmodule AgentSessionManager.Core.ErrorTest do
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
+
   alias AgentSessionManager.Core.Error
 
   describe "Error struct" do

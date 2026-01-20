@@ -5,7 +5,7 @@ defmodule AgentSessionManager.Core.EventNormalizerTest do
   Following TDD: these tests specify the behavior of the EventNormalizer
   before implementation.
   """
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Core.Error
   alias AgentSessionManager.Core.EventNormalizer

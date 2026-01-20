@@ -35,7 +35,7 @@ defmodule AgentSessionManager.Load.StreamingThroughputTest do
 
   """
 
-  use ExUnit.Case, async: false
+  use AgentSessionManager.SupertesterCase, async: false
 
   alias AgentSessionManager.Adapters.InMemorySessionStore
   alias AgentSessionManager.Ports.SessionStore

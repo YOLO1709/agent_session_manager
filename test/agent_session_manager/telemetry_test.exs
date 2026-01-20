@@ -7,32 +7,104 @@ defmodule AgentSessionManager.TelemetryTest do
 
   # NOTE: async: false because these tests manipulate global telemetry_enabled state
   # via Application.put_env, which causes race conditions with parallel execution
-  use ExUnit.Case, async: false
+  use AgentSessionManager.SupertesterCase, async: false
 
   alias AgentSessionManager.Core.{Run, Session}
   alias AgentSessionManager.Telemetry
 
   # ============================================================================
+  # Test Setup - Ensure clean state for each test
+  # ============================================================================
+
+  setup do
+    # Reset telemetry to enabled state at start of each test
+    Telemetry.set_enabled(true)
+
+    # Clear any stale messages in the mailbox from other tests
+    flush_mailbox()
+
+    on_exit(fn ->
+      # Ensure telemetry is re-enabled after test
+      Telemetry.set_enabled(true)
+    end)
+
+    :ok
+  end
+
+  # ============================================================================
+  # Handler Module - Using module function avoids telemetry warnings
+  # ============================================================================
+
+  defmodule TestHandler do
+    @moduledoc false
+
+    def handle_event(event, measurements, metadata, %{pid: pid, ref: ref}) do
+      send(pid, {:telemetry_event, ref, event, measurements, metadata})
+    end
+  end
+
+  # ============================================================================
   # Test Helpers
   # ============================================================================
 
-  defp attach_test_handler(event_name, test_pid) do
+  # Flush all messages from the process mailbox
+  defp flush_mailbox do
+    receive do
+      _ -> flush_mailbox()
+    after
+      0 -> :ok
+    end
+  end
+
+  defp attach_test_handler(event_name) do
+    ref = make_ref()
     handler_id = "test-handler-#{:erlang.unique_integer()}"
 
     :telemetry.attach(
       handler_id,
       event_name,
-      fn event, measurements, metadata, _config ->
-        send(test_pid, {:telemetry_event, event, measurements, metadata})
-      end,
-      nil
+      &TestHandler.handle_event/4,
+      %{pid: self(), ref: ref}
     )
 
-    handler_id
+    # Register cleanup to ensure handler is always detached
+    on_exit(fn ->
+      try do
+        :telemetry.detach(handler_id)
+      rescue
+        _ -> :ok
+      end
+    end)
+
+    {handler_id, ref}
   end
 
-  defp detach_handler(handler_id) do
-    :telemetry.detach(handler_id)
+  # Wait for a telemetry event matching the given ref and session_id
+  # This filters out events from other tests
+  defp receive_event(ref, session_id, timeout \\ 1000) do
+    receive do
+      {:telemetry_event, ^ref, event, measurements, %{session_id: ^session_id} = metadata} ->
+        {:ok, event, measurements, metadata}
+
+      {:telemetry_event, ^ref, _event, _measurements, _metadata} ->
+        # Event from our handler but different session - keep waiting
+        receive_event(ref, session_id, timeout)
+    after
+      timeout -> {:error, :timeout}
+    end
+  end
+
+  # Assert no events matching our ref arrive within timeout
+  # Events from other tests (different ref) are ignored
+  defp refute_event(ref, timeout \\ 100) do
+    receive do
+      {:telemetry_event, ^ref, event, _measurements, metadata} ->
+        flunk(
+          "Unexpectedly received telemetry event: #{inspect(event)} with metadata: #{inspect(metadata)}"
+        )
+    after
+      timeout -> :ok
+    end
   end
 
   defp create_test_session do
@@ -109,74 +181,68 @@ defmodule AgentSessionManager.TelemetryTest do
       session = create_test_session()
       run = create_test_run(session)
 
-      handler_id = attach_test_handler([:agent_session_manager, :run, :start], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :start])
 
       Telemetry.emit_run_start(run, session)
 
-      assert_receive {:telemetry_event, event, measurements, metadata}, 1000
+      assert {:ok, event, measurements, metadata} = receive_event(ref, session.id)
       assert event == [:agent_session_manager, :run, :start]
       assert is_map(measurements)
       assert is_map(metadata)
-
-      detach_handler(handler_id)
     end
 
     test "includes run_id and session_id in metadata" do
       session = create_test_session()
       run = create_test_run(session)
 
-      handler_id = attach_test_handler([:agent_session_manager, :run, :start], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :start])
 
       Telemetry.emit_run_start(run, session)
 
-      assert_receive {:telemetry_event, _event, _measurements, metadata}, 1000
+      assert {:ok, _event, _measurements, metadata} = receive_event(ref, session.id)
       assert metadata.run_id == run.id
       assert metadata.session_id == session.id
-
-      detach_handler(handler_id)
     end
 
     test "includes agent_id in metadata" do
       session = create_test_session()
       run = create_test_run(session)
 
-      handler_id = attach_test_handler([:agent_session_manager, :run, :start], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :start])
 
       Telemetry.emit_run_start(run, session)
 
-      assert_receive {:telemetry_event, _event, _measurements, metadata}, 1000
+      assert {:ok, _event, _measurements, metadata} = receive_event(ref, session.id)
       assert metadata.agent_id == session.agent_id
-
-      detach_handler(handler_id)
     end
 
     test "includes system_time measurement" do
       session = create_test_session()
       run = create_test_run(session)
 
-      handler_id = attach_test_handler([:agent_session_manager, :run, :start], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :start])
 
       Telemetry.emit_run_start(run, session)
 
-      assert_receive {:telemetry_event, _event, measurements, _metadata}, 1000
+      assert {:ok, _event, measurements, _metadata} = receive_event(ref, session.id)
       assert is_integer(measurements.system_time)
-
-      detach_handler(handler_id)
     end
 
     test "does not emit event when telemetry is disabled" do
       session = create_test_session()
       run = create_test_run(session)
 
+      # Disable telemetry FIRST, then attach handler
       Telemetry.set_enabled(false)
-      handler_id = attach_test_handler([:agent_session_manager, :run, :start], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :start])
 
+      # Now emit - should NOT produce any event because telemetry is disabled
       Telemetry.emit_run_start(run, session)
 
-      refute_receive {:telemetry_event, _, _, _}, 100
+      # Only check for events from OUR handler (matching ref)
+      refute_event(ref)
 
       Telemetry.set_enabled(true)
-      detach_handler(handler_id)
     end
   end
 
@@ -190,14 +256,12 @@ defmodule AgentSessionManager.TelemetryTest do
       run = create_test_run(session)
       result = %{output: %{content: "Hello"}, token_usage: %{input: 10, output: 5}}
 
-      handler_id = attach_test_handler([:agent_session_manager, :run, :stop], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :stop])
 
       Telemetry.emit_run_end(run, session, result)
 
-      assert_receive {:telemetry_event, event, _measurements, _metadata}, 1000
+      assert {:ok, event, _measurements, _metadata} = receive_event(ref, session.id)
       assert event == [:agent_session_manager, :run, :stop]
-
-      detach_handler(handler_id)
     end
 
     test "includes duration measurement" do
@@ -205,15 +269,13 @@ defmodule AgentSessionManager.TelemetryTest do
       run = create_test_run(session)
       result = %{output: %{content: "Hello"}, token_usage: %{}}
 
-      handler_id = attach_test_handler([:agent_session_manager, :run, :stop], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :stop])
 
       Telemetry.emit_run_end(run, session, result)
 
-      assert_receive {:telemetry_event, _event, measurements, _metadata}, 1000
+      assert {:ok, _event, measurements, _metadata} = receive_event(ref, session.id)
       assert is_integer(measurements.duration)
       assert measurements.duration >= 0
-
-      detach_handler(handler_id)
     end
 
     test "includes token usage measurements when provided" do
@@ -221,15 +283,13 @@ defmodule AgentSessionManager.TelemetryTest do
       run = create_test_run(session)
       result = %{output: %{}, token_usage: %{input_tokens: 100, output_tokens: 50}}
 
-      handler_id = attach_test_handler([:agent_session_manager, :run, :stop], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :stop])
 
       Telemetry.emit_run_end(run, session, result)
 
-      assert_receive {:telemetry_event, _event, measurements, _metadata}, 1000
+      assert {:ok, _event, measurements, _metadata} = receive_event(ref, session.id)
       assert measurements.input_tokens == 100
       assert measurements.output_tokens == 50
-
-      detach_handler(handler_id)
     end
 
     test "includes run status in metadata" do
@@ -238,14 +298,12 @@ defmodule AgentSessionManager.TelemetryTest do
       {:ok, completed_run} = Run.set_output(run, %{content: "Done"})
       result = %{output: %{}, token_usage: %{}}
 
-      handler_id = attach_test_handler([:agent_session_manager, :run, :stop], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :stop])
 
       Telemetry.emit_run_end(completed_run, session, result)
 
-      assert_receive {:telemetry_event, _event, _measurements, metadata}, 1000
+      assert {:ok, _event, _measurements, metadata} = receive_event(ref, session.id)
       assert metadata.status == :completed
-
-      detach_handler(handler_id)
     end
 
     test "does not emit event when telemetry is disabled" do
@@ -254,14 +312,13 @@ defmodule AgentSessionManager.TelemetryTest do
       result = %{output: %{}, token_usage: %{}}
 
       Telemetry.set_enabled(false)
-      handler_id = attach_test_handler([:agent_session_manager, :run, :stop], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :stop])
 
       Telemetry.emit_run_end(run, session, result)
 
-      refute_receive {:telemetry_event, _, _, _}, 100
+      refute_event(ref)
 
       Telemetry.set_enabled(true)
-      detach_handler(handler_id)
     end
   end
 
@@ -275,14 +332,12 @@ defmodule AgentSessionManager.TelemetryTest do
       run = create_test_run(session)
       error = %{code: :provider_error, message: "API failed"}
 
-      handler_id = attach_test_handler([:agent_session_manager, :run, :exception], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :exception])
 
       Telemetry.emit_error(run, session, error)
 
-      assert_receive {:telemetry_event, event, _measurements, _metadata}, 1000
+      assert {:ok, event, _measurements, _metadata} = receive_event(ref, session.id)
       assert event == [:agent_session_manager, :run, :exception]
-
-      detach_handler(handler_id)
     end
 
     test "includes error code in metadata" do
@@ -290,14 +345,12 @@ defmodule AgentSessionManager.TelemetryTest do
       run = create_test_run(session)
       error = %{code: :rate_limit, message: "Too many requests"}
 
-      handler_id = attach_test_handler([:agent_session_manager, :run, :exception], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :exception])
 
       Telemetry.emit_error(run, session, error)
 
-      assert_receive {:telemetry_event, _event, _measurements, metadata}, 1000
+      assert {:ok, _event, _measurements, metadata} = receive_event(ref, session.id)
       assert metadata.error_code == :rate_limit
-
-      detach_handler(handler_id)
     end
 
     test "includes error message in metadata" do
@@ -305,14 +358,12 @@ defmodule AgentSessionManager.TelemetryTest do
       run = create_test_run(session)
       error = %{code: :timeout, message: "Request timed out"}
 
-      handler_id = attach_test_handler([:agent_session_manager, :run, :exception], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :exception])
 
       Telemetry.emit_error(run, session, error)
 
-      assert_receive {:telemetry_event, _event, _measurements, metadata}, 1000
+      assert {:ok, _event, _measurements, metadata} = receive_event(ref, session.id)
       assert metadata.error_message == "Request timed out"
-
-      detach_handler(handler_id)
     end
 
     test "includes run_id and session_id in metadata" do
@@ -320,15 +371,13 @@ defmodule AgentSessionManager.TelemetryTest do
       run = create_test_run(session)
       error = %{code: :unknown, message: "Unknown error"}
 
-      handler_id = attach_test_handler([:agent_session_manager, :run, :exception], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :exception])
 
       Telemetry.emit_error(run, session, error)
 
-      assert_receive {:telemetry_event, _event, _measurements, metadata}, 1000
+      assert {:ok, _event, _measurements, metadata} = receive_event(ref, session.id)
       assert metadata.run_id == run.id
       assert metadata.session_id == session.id
-
-      detach_handler(handler_id)
     end
 
     test "does not emit event when telemetry is disabled" do
@@ -337,14 +386,13 @@ defmodule AgentSessionManager.TelemetryTest do
       error = %{code: :error, message: "Error"}
 
       Telemetry.set_enabled(false)
-      handler_id = attach_test_handler([:agent_session_manager, :run, :exception], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :run, :exception])
 
       Telemetry.emit_error(run, session, error)
 
-      refute_receive {:telemetry_event, _, _, _}, 100
+      refute_event(ref)
 
       Telemetry.set_enabled(true)
-      detach_handler(handler_id)
     end
   end
 
@@ -363,14 +411,12 @@ defmodule AgentSessionManager.TelemetryTest do
         cost_usd: 0.0035
       }
 
-      handler_id = attach_test_handler([:agent_session_manager, :usage, :report], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :usage, :report])
 
       Telemetry.emit_usage_metrics(session, metrics)
 
-      assert_receive {:telemetry_event, event, _measurements, _metadata}, 1000
+      assert {:ok, event, _measurements, _metadata} = receive_event(ref, session.id)
       assert event == [:agent_session_manager, :usage, :report]
-
-      detach_handler(handler_id)
     end
 
     test "includes all usage metrics as measurements" do
@@ -382,31 +428,27 @@ defmodule AgentSessionManager.TelemetryTest do
         total_tokens: 700
       }
 
-      handler_id = attach_test_handler([:agent_session_manager, :usage, :report], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :usage, :report])
 
       Telemetry.emit_usage_metrics(session, metrics)
 
-      assert_receive {:telemetry_event, _event, measurements, _metadata}, 1000
+      assert {:ok, _event, measurements, _metadata} = receive_event(ref, session.id)
       assert measurements.input_tokens == 500
       assert measurements.output_tokens == 200
       assert measurements.total_tokens == 700
-
-      detach_handler(handler_id)
     end
 
     test "includes session_id and agent_id in metadata" do
       session = create_test_session()
       metrics = %{total_tokens: 100}
 
-      handler_id = attach_test_handler([:agent_session_manager, :usage, :report], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :usage, :report])
 
       Telemetry.emit_usage_metrics(session, metrics)
 
-      assert_receive {:telemetry_event, _event, _measurements, metadata}, 1000
+      assert {:ok, _event, _measurements, metadata} = receive_event(ref, session.id)
       assert metadata.session_id == session.id
       assert metadata.agent_id == session.agent_id
-
-      detach_handler(handler_id)
     end
 
     test "does not emit event when telemetry is disabled" do
@@ -414,14 +456,13 @@ defmodule AgentSessionManager.TelemetryTest do
       metrics = %{total_tokens: 100}
 
       Telemetry.set_enabled(false)
-      handler_id = attach_test_handler([:agent_session_manager, :usage, :report], self())
+      {_handler_id, ref} = attach_test_handler([:agent_session_manager, :usage, :report])
 
       Telemetry.emit_usage_metrics(session, metrics)
 
-      refute_receive {:telemetry_event, _, _, _}, 100
+      refute_event(ref)
 
       Telemetry.set_enabled(true)
-      detach_handler(handler_id)
     end
   end
 
@@ -434,8 +475,8 @@ defmodule AgentSessionManager.TelemetryTest do
       session = create_test_session()
       run = create_test_run(session)
 
-      start_handler = attach_test_handler([:agent_session_manager, :run, :start], self())
-      stop_handler = attach_test_handler([:agent_session_manager, :run, :stop], self())
+      {_start_handler, start_ref} = attach_test_handler([:agent_session_manager, :run, :start])
+      {_stop_handler, stop_ref} = attach_test_handler([:agent_session_manager, :run, :stop])
 
       result =
         Telemetry.span(
@@ -449,24 +490,24 @@ defmodule AgentSessionManager.TelemetryTest do
 
       assert {:ok, _} = result
 
-      assert_receive {:telemetry_event, [:agent_session_manager, :run, :start], _, _}, 1000
+      assert {:ok, [:agent_session_manager, :run, :start], _, _} =
+               receive_event(start_ref, session.id)
 
-      assert_receive {:telemetry_event, [:agent_session_manager, :run, :stop], measurements, _},
-                     1000
+      assert {:ok, [:agent_session_manager, :run, :stop], measurements, _} =
+               receive_event(stop_ref, session.id)
 
       # At least 10ms in nanoseconds
       assert measurements.duration >= 10_000_000
-
-      detach_handler(start_handler)
-      detach_handler(stop_handler)
     end
 
     test "emits exception event on error" do
       session = create_test_session()
       run = create_test_run(session)
 
-      start_handler = attach_test_handler([:agent_session_manager, :run, :start], self())
-      exception_handler = attach_test_handler([:agent_session_manager, :run, :exception], self())
+      {_start_handler, start_ref} = attach_test_handler([:agent_session_manager, :run, :start])
+
+      {_exception_handler, exception_ref} =
+        attach_test_handler([:agent_session_manager, :run, :exception])
 
       result =
         Telemetry.span(
@@ -479,15 +520,13 @@ defmodule AgentSessionManager.TelemetryTest do
 
       assert {:error, _} = result
 
-      assert_receive {:telemetry_event, [:agent_session_manager, :run, :start], _, _}, 1000
+      assert {:ok, [:agent_session_manager, :run, :start], _, _} =
+               receive_event(start_ref, session.id)
 
-      assert_receive {:telemetry_event, [:agent_session_manager, :run, :exception], _, metadata},
-                     1000
+      assert {:ok, [:agent_session_manager, :run, :exception], _, metadata} =
+               receive_event(exception_ref, session.id)
 
       assert metadata.error_code == :provider_error
-
-      detach_handler(start_handler)
-      detach_handler(exception_handler)
     end
   end
 end

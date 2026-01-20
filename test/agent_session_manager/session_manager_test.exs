@@ -4,13 +4,13 @@ defmodule AgentSessionManager.SessionManagerTest do
 
   SessionManager orchestrates session lifecycle, run execution, and event handling.
   These tests use a mock adapter to verify behaviour without external dependencies.
+
+  Uses Supertester for robust async testing and process isolation.
   """
 
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
-  alias AgentSessionManager.Adapters.InMemorySessionStore
-  alias AgentSessionManager.Core.{Capability, Error, Run, Session}
-  alias AgentSessionManager.Ports.SessionStore
+  alias AgentSessionManager.Core.Capability
   alias AgentSessionManager.SessionManager
 
   # ============================================================================
@@ -21,11 +21,13 @@ defmodule AgentSessionManager.SessionManagerTest do
     @moduledoc """
     Mock provider adapter for testing SessionManager.
     Uses GenServer to be compatible with ProviderAdapter port.
+    Includes TestableGenServer for deterministic async testing.
     """
 
     @behaviour AgentSessionManager.Ports.ProviderAdapter
 
     use GenServer
+    use Supertester.TestableGenServer
 
     def start_link(opts \\ []) do
       {name, config} = Keyword.pop(opts, :name)
@@ -216,25 +218,17 @@ defmodule AgentSessionManager.SessionManagerTest do
   # Test Setup
   # ============================================================================
 
-  setup do
-    {:ok, store} = InMemorySessionStore.start_link()
+  setup ctx do
+    {:ok, store} = setup_test_store(ctx)
     {:ok, adapter} = MockAdapter.start_link()
 
     on_exit(fn ->
-      try do
-        if Process.alive?(store), do: InMemorySessionStore.stop(store)
-      catch
-        :exit, _ -> :ok
-      end
-
-      try do
-        if Process.alive?(adapter), do: MockAdapter.stop(adapter)
-      catch
-        :exit, _ -> :ok
-      end
+      safe_stop(adapter)
     end)
 
-    {:ok, store: store, adapter: adapter}
+    ctx
+    |> Map.put(:store, store)
+    |> Map.put(:adapter, adapter)
   end
 
   # ============================================================================

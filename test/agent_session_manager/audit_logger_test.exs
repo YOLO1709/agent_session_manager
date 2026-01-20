@@ -4,11 +4,12 @@ defmodule AgentSessionManager.AuditLoggerTest do
 
   Following TDD workflow: these tests specify expected behavior before implementation.
   Audit logs should persist events to SessionStore in append-only order.
+
+  Uses Supertester for robust async testing and process isolation.
   """
 
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
-  alias AgentSessionManager.Adapters.InMemorySessionStore
   alias AgentSessionManager.AuditLogger
   alias AgentSessionManager.Core.{Run, Session}
   alias AgentSessionManager.Ports.SessionStore
@@ -17,12 +18,20 @@ defmodule AgentSessionManager.AuditLoggerTest do
   # Test Setup
   # ============================================================================
 
-  setup do
-    {:ok, store} = InMemorySessionStore.start_link([])
+  setup ctx do
+    {:ok, store} = setup_test_store(ctx)
     {:ok, session} = Session.new(%{agent_id: "test-agent"})
     :ok = SessionStore.save_session(store, session)
     {:ok, run} = Run.new(%{session_id: session.id})
     :ok = SessionStore.save_run(store, run)
+
+    # Ensure audit logging is enabled at start of each test
+    AuditLogger.set_enabled(true)
+
+    on_exit(fn ->
+      # Reset to enabled after test
+      AuditLogger.set_enabled(true)
+    end)
 
     %{store: store, session: session, run: run}
   end
@@ -61,9 +70,6 @@ defmodule AgentSessionManager.AuditLoggerTest do
     test "disables audit logging" do
       AuditLogger.set_enabled(false)
       assert AuditLogger.enabled?() == false
-
-      # Re-enable for other tests
-      AuditLogger.set_enabled(true)
     end
   end
 
@@ -109,8 +115,6 @@ defmodule AgentSessionManager.AuditLoggerTest do
 
       {:ok, events} = SessionStore.get_events(store, session.id)
       assert Enum.empty?(events)
-
-      AuditLogger.set_enabled(true)
     end
   end
 
@@ -154,8 +158,6 @@ defmodule AgentSessionManager.AuditLoggerTest do
 
       {:ok, events} = SessionStore.get_events(store, session.id)
       assert Enum.empty?(events)
-
-      AuditLogger.set_enabled(true)
     end
   end
 
@@ -195,8 +197,6 @@ defmodule AgentSessionManager.AuditLoggerTest do
 
       {:ok, events} = SessionStore.get_events(store, session.id)
       assert Enum.empty?(events)
-
-      AuditLogger.set_enabled(true)
     end
   end
 
@@ -374,8 +374,6 @@ defmodule AgentSessionManager.AuditLoggerTest do
 
       {:ok, events} = SessionStore.get_events(store, session.id)
       assert Enum.empty?(events)
-
-      AuditLogger.set_enabled(true)
     end
   end
 

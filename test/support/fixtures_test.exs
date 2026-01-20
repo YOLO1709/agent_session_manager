@@ -8,7 +8,7 @@ defmodule AgentSessionManager.Test.FixturesTest do
   - Reusable across test modules
   """
 
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Core.{Capability, Event, Run, Session}
   alias AgentSessionManager.Test.Fixtures

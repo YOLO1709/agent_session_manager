@@ -12,7 +12,7 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
   All tests use the MockSDK to simulate Claude API responses.
   """
 
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Adapters.Claude.MockSDK
   alias AgentSessionManager.Adapters.ClaudeAdapter
@@ -999,14 +999,29 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
   # Helpers
   # ============================================================================
 
-  defp collect_events(pid, timeout) do
-    collect_events(pid, timeout, [])
+  # Collect events with smart timeout:
+  # - Initial timeout to wait for first event
+  # - Short drain timeout after receiving events to quickly collect remaining
+  # - Stop immediately when we see a terminal event (run_completed, run_failed)
+  @terminal_events [:run_completed, :run_failed, :run_cancelled]
+  @drain_timeout 50
+
+  defp collect_events(_pid, timeout) do
+    collect_events_loop(timeout, [])
   end
 
-  defp collect_events(pid, timeout, acc) do
+  defp collect_events_loop(timeout, acc) do
     receive do
       {:event, event} ->
-        collect_events(pid, timeout, acc ++ [event])
+        new_acc = acc ++ [event]
+
+        # If this is a terminal event, we're done
+        if event.type in @terminal_events do
+          new_acc
+        else
+          # Use short drain timeout after receiving an event
+          collect_events_loop(@drain_timeout, new_acc)
+        end
     after
       timeout ->
         acc

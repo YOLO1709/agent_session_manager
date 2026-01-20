@@ -6,7 +6,7 @@ defmodule AgentSessionManager.Ports.SessionStoreContractTest do
   They should be run against all implementations to ensure compliance.
   """
 
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Adapters.InMemorySessionStore
   alias AgentSessionManager.Core.{Error, Event, Run, Session}

@@ -13,7 +13,7 @@ defmodule AgentSessionManager.Concurrency.ControlOperationsTest do
   4. Control operation status tracking
   """
 
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Concurrency.ControlOperations
   alias AgentSessionManager.Core.{Capability, Error}
@@ -30,6 +30,7 @@ defmodule AgentSessionManager.Concurrency.ControlOperationsTest do
     @behaviour AgentSessionManager.Ports.ProviderAdapter
 
     use GenServer
+    use Supertester.TestableGenServer
 
     alias AgentSessionManager.Core.{Capability, Error}
 

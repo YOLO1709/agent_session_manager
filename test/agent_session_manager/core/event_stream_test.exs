@@ -5,7 +5,7 @@ defmodule AgentSessionManager.Core.EventStreamTest do
   Following TDD: these tests specify the EventStream behavior for
   consuming normalized events incrementally.
   """
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Core.Error
   alias AgentSessionManager.Core.EventStream

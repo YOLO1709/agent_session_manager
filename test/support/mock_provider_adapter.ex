@@ -38,6 +38,7 @@ defmodule AgentSessionManager.Test.MockProviderAdapter do
   @behaviour AgentSessionManager.Ports.ProviderAdapter
 
   use GenServer
+  use Supertester.TestableGenServer
 
   alias AgentSessionManager.Core.{Capability, Error}
 

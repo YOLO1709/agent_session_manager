@@ -4,9 +4,11 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
 
   These tests verify that the store handles concurrent access correctly,
   without race conditions or data corruption.
+
+  Uses Supertester for robust async testing and process isolation.
   """
 
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Adapters.InMemorySessionStore
   alias AgentSessionManager.Core.{Event, Run, Session}
@@ -25,21 +27,20 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
     test "concurrent session saves are safe" do
       store = new_store()
 
-      tasks =
-        for i <- 1..@concurrency_level do
-          Task.async(fn ->
-            {:ok, session} = Session.new(%{agent_id: "agent-#{i}"})
-            SessionStore.save_session(store, session)
-            session.id
-          end)
-        end
-
-      session_ids = Task.await_many(tasks, 5000)
+      # Use supertester's run_concurrent helper
+      session_ids =
+        run_concurrent(@concurrency_level, fn i ->
+          {:ok, session} = Session.new(%{agent_id: "agent-#{i}"})
+          :ok = SessionStore.save_session(store, session)
+          session.id
+        end)
 
       {:ok, sessions} = SessionStore.list_sessions(store)
 
       assert length(sessions) == @concurrency_level
       assert length(Enum.uniq(session_ids)) == @concurrency_level
+
+      safe_stop(store)
     end
 
     test "concurrent reads and writes to same session are safe" do
@@ -47,22 +48,18 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
       {:ok, session} = Session.new(%{agent_id: "agent-1"})
       :ok = SessionStore.save_session(store, session)
 
-      # Mix of reads and writes
-      tasks =
-        for i <- 1..@concurrency_level do
-          Task.async(fn ->
-            if rem(i, 2) == 0 do
-              # Read
-              SessionStore.get_session(store, session.id)
-            else
-              # Write (update status)
-              {:ok, updated} = Session.update_status(session, :active)
-              SessionStore.save_session(store, updated)
-            end
-          end)
-        end
-
-      results = Task.await_many(tasks, 5000)
+      # Mix of reads and writes using run_concurrent
+      results =
+        run_concurrent(@concurrency_level, fn i ->
+          if rem(i, 2) == 0 do
+            # Read
+            SessionStore.get_session(store, session.id)
+          else
+            # Write (update status)
+            {:ok, updated} = Session.update_status(session, :active)
+            SessionStore.save_session(store, updated)
+          end
+        end)
 
       # All operations should succeed
       assert Enum.all?(results, fn
@@ -74,6 +71,8 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
       # Final state should be consistent
       {:ok, final_session} = SessionStore.get_session(store, session.id)
       assert final_session.id == session.id
+
+      safe_stop(store)
     end
 
     test "concurrent deletes are safe" do
@@ -88,17 +87,14 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
         end
 
       # Delete all concurrently
-      tasks =
-        for id <- session_ids do
-          Task.async(fn ->
-            SessionStore.delete_session(store, id)
-          end)
-        end
-
-      Task.await_many(tasks, 5000)
+      run_concurrent(length(session_ids), fn i ->
+        SessionStore.delete_session(store, Enum.at(session_ids, i - 1))
+      end)
 
       {:ok, sessions} = SessionStore.list_sessions(store)
       assert sessions == []
+
+      safe_stop(store)
     end
   end
 
@@ -115,16 +111,13 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
         end
 
       # Create runs concurrently
-      tasks =
-        for session <- sessions do
-          Task.async(fn ->
-            {:ok, run} = Run.new(%{session_id: session.id})
-            SessionStore.save_run(store, run)
-            {session.id, run.id}
-          end)
-        end
-
-      results = Task.await_many(tasks, 5000)
+      results =
+        run_concurrent(length(sessions), fn i ->
+          session = Enum.at(sessions, i - 1)
+          {:ok, run} = Run.new(%{session_id: session.id})
+          :ok = SessionStore.save_run(store, run)
+          {session.id, run.id}
+        end)
 
       # Verify all runs were created
       for {session_id, run_id} <- results do
@@ -132,6 +125,8 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
         assert length(runs) == 1
         assert hd(runs).id == run_id
       end
+
+      safe_stop(store)
     end
 
     test "concurrent run updates to same run" do
@@ -142,21 +137,18 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
       :ok = SessionStore.save_run(store, run)
 
       # Multiple concurrent updates
-      tasks =
-        for i <- 1..@concurrency_level do
-          Task.async(fn ->
-            {:ok, updated} = Run.increment_turn(run)
-            {:ok, updated} = Run.update_token_usage(updated, %{input: i, output: i * 2})
-            SessionStore.save_run(store, updated)
-          end)
-        end
-
-      Task.await_many(tasks, 5000)
+      run_concurrent(@concurrency_level, fn i ->
+        {:ok, updated} = Run.increment_turn(run)
+        {:ok, updated} = Run.update_token_usage(updated, %{input: i, output: i * 2})
+        SessionStore.save_run(store, updated)
+      end)
 
       # Run should still be retrievable and valid
       {:ok, final_run} = SessionStore.get_run(store, run.id)
       assert final_run.id == run.id
       assert final_run.session_id == session.id
+
+      safe_stop(store)
     end
 
     test "get_active_run is consistent under concurrent updates" do
@@ -168,20 +160,18 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
       :ok = SessionStore.save_run(store, running_run)
 
       # Concurrent reads of active run
-      tasks =
-        for _ <- 1..@concurrency_level do
-          Task.async(fn ->
-            SessionStore.get_active_run(store, session.id)
-          end)
-        end
-
-      results = Task.await_many(tasks, 5000)
+      results =
+        run_concurrent(@concurrency_level, fn _ ->
+          SessionStore.get_active_run(store, session.id)
+        end)
 
       # All reads should return the same active run
       assert Enum.all?(results, fn
                {:ok, active_run} when not is_nil(active_run) -> active_run.id == run.id
                {:ok, nil} -> false
              end)
+
+      safe_stop(store)
     end
   end
 
@@ -192,23 +182,19 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
       :ok = SessionStore.save_session(store, session)
 
       # Append events concurrently with sequence numbers
-      tasks =
-        for i <- 1..@concurrency_level do
-          Task.async(fn ->
-            {:ok, event} =
-              Event.new(%{
-                type: :message_received,
-                session_id: session.id,
-                sequence_number: i,
-                data: %{index: i}
-              })
+      event_ids =
+        run_concurrent(@concurrency_level, fn i ->
+          {:ok, event} =
+            Event.new(%{
+              type: :message_received,
+              session_id: session.id,
+              sequence_number: i,
+              data: %{index: i}
+            })
 
-            SessionStore.append_event(store, event)
-            event.id
-          end)
-        end
-
-      event_ids = Task.await_many(tasks, 5000)
+          :ok = SessionStore.append_event(store, event)
+          event.id
+        end)
 
       {:ok, events} = SessionStore.get_events(store, session.id)
 
@@ -218,6 +204,8 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
       # All event IDs should be present
       stored_ids = Enum.map(events, & &1.id)
       assert Enum.sort(event_ids) == Enum.sort(stored_ids)
+
+      safe_stop(store)
     end
 
     test "concurrent event reads are safe" do
@@ -238,20 +226,18 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
       end
 
       # Concurrent reads
-      tasks =
-        for _ <- 1..@concurrency_level do
-          Task.async(fn ->
-            SessionStore.get_events(store, session.id)
-          end)
-        end
-
-      results = Task.await_many(tasks, 5000)
+      results =
+        run_concurrent(@concurrency_level, fn _ ->
+          SessionStore.get_events(store, session.id)
+        end)
 
       # All reads should succeed with same event count
       assert Enum.all?(results, fn
                {:ok, events} -> length(events) == 50
                _ -> false
              end)
+
+      safe_stop(store)
     end
 
     test "mixed read/write operations on events" do
@@ -272,27 +258,23 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
       end
 
       # Mix of reads and writes
-      tasks =
-        for i <- 1..@concurrency_level do
-          Task.async(fn ->
-            if rem(i, 3) == 0 do
-              # Read
-              SessionStore.get_events(store, session.id)
-            else
-              # Write
-              {:ok, event} =
-                Event.new(%{
-                  type: :message_sent,
-                  session_id: session.id,
-                  data: %{index: i}
-                })
+      results =
+        run_concurrent(@concurrency_level, fn i ->
+          if rem(i, 3) == 0 do
+            # Read
+            SessionStore.get_events(store, session.id)
+          else
+            # Write
+            {:ok, event} =
+              Event.new(%{
+                type: :message_sent,
+                session_id: session.id,
+                data: %{index: i}
+              })
 
-              SessionStore.append_event(store, event)
-            end
-          end)
-        end
-
-      results = Task.await_many(tasks, 5000)
+            SessionStore.append_event(store, event)
+          end
+        end)
 
       # All operations should succeed
       assert Enum.all?(results, fn
@@ -300,6 +282,8 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
                {:ok, _} -> true
                _ -> false
              end)
+
+      safe_stop(store)
     end
   end
 
@@ -309,51 +293,43 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
 
       for _iteration <- 1..@iterations do
         # Create a batch of sessions concurrently
-        session_tasks =
-          for i <- 1..10 do
-            Task.async(fn ->
-              {:ok, session} = Session.new(%{agent_id: "agent-#{i}"})
-              :ok = SessionStore.save_session(store, session)
-              session
-            end)
-          end
-
-        sessions = Task.await_many(session_tasks, 5000)
+        sessions =
+          run_concurrent(10, fn i ->
+            {:ok, session} = Session.new(%{agent_id: "agent-#{i}"})
+            :ok = SessionStore.save_session(store, session)
+            session
+          end)
 
         # Create runs for each session concurrently
-        run_tasks =
-          for session <- sessions do
-            Task.async(fn ->
-              {:ok, run} = Run.new(%{session_id: session.id})
-              :ok = SessionStore.save_run(store, run)
-              {session.id, run}
-            end)
-          end
-
-        session_runs = Task.await_many(run_tasks, 5000)
+        session_runs =
+          run_concurrent(length(sessions), fn i ->
+            session = Enum.at(sessions, i - 1)
+            {:ok, run} = Run.new(%{session_id: session.id})
+            :ok = SessionStore.save_run(store, run)
+            {session.id, run}
+          end)
 
         # Append events concurrently
-        event_tasks =
-          for {session_id, run} <- session_runs do
-            Task.async(fn ->
-              {:ok, event} =
-                Event.new(%{
-                  type: :run_started,
-                  session_id: session_id,
-                  run_id: run.id
-                })
+        run_concurrent(length(session_runs), fn i ->
+          {session_id, run} = Enum.at(session_runs, i - 1)
 
-              :ok = SessionStore.append_event(store, event)
-            end)
-          end
+          {:ok, event} =
+            Event.new(%{
+              type: :run_started,
+              session_id: session_id,
+              run_id: run.id
+            })
 
-        Task.await_many(event_tasks, 5000)
+          :ok = SessionStore.append_event(store, event)
+        end)
       end
 
       # Verify data integrity
       {:ok, all_sessions} = SessionStore.list_sessions(store)
       # Some sessions might be duplicates with same agent_id, so just verify we have sessions
       assert all_sessions != []
+
+      safe_stop(store)
     end
 
     test "no data corruption under heavy concurrent load" do
@@ -362,9 +338,10 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
       :ok = SessionStore.save_session(store, session)
 
       # Heavy concurrent operations on same session
-      tasks =
-        for i <- 1..(@concurrency_level * 2) do
-          Task.async(fn ->
+      results =
+        run_concurrent(
+          @concurrency_level * 2,
+          fn i ->
             case rem(i, 4) do
               0 ->
                 # Read session
@@ -391,10 +368,9 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
 
                 SessionStore.append_event(store, event)
             end
-          end)
-        end
-
-      results = Task.await_many(tasks, 10_000)
+          end,
+          10_000
+        )
 
       # All operations should complete without errors
       errors =
@@ -409,6 +385,8 @@ defmodule AgentSessionManager.Ports.SessionStoreConcurrencyTest do
       # Session should still be readable
       {:ok, final_session} = SessionStore.get_session(store, session.id)
       assert final_session.id == session.id
+
+      safe_stop(store)
     end
   end
 end

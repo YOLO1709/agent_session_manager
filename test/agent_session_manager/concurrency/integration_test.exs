@@ -4,9 +4,11 @@ defmodule AgentSessionManager.Concurrency.IntegrationTest do
 
   These tests verify that ConcurrencyLimiter and ControlOperations
   work correctly with the SessionManager.
+
+  Uses Supertester for robust async testing and process isolation.
   """
 
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Adapters.InMemorySessionStore
   alias AgentSessionManager.Concurrency.{ConcurrencyLimiter, ControlOperations}
@@ -22,6 +24,7 @@ defmodule AgentSessionManager.Concurrency.IntegrationTest do
     @behaviour AgentSessionManager.Ports.ProviderAdapter
 
     use GenServer
+    use Supertester.TestableGenServer
 
     alias AgentSessionManager.Core.{Capability, Error}
 
@@ -118,7 +121,7 @@ defmodule AgentSessionManager.Concurrency.IntegrationTest do
   # Setup
   # ============================================================================
 
-  setup do
+  setup ctx do
     {:ok, store} = InMemorySessionStore.start_link()
     {:ok, adapter} = MockIntegrationAdapter.start_link()
 
@@ -132,11 +135,15 @@ defmodule AgentSessionManager.Concurrency.IntegrationTest do
 
     on_exit(fn ->
       for pid <- [store, adapter, limiter, ops] do
-        if Process.alive?(pid), do: GenServer.stop(pid)
+        safe_stop(pid)
       end
     end)
 
-    {:ok, store: store, adapter: adapter, limiter: limiter, ops: ops}
+    ctx
+    |> Map.put(:store, store)
+    |> Map.put(:adapter, adapter)
+    |> Map.put(:limiter, limiter)
+    |> Map.put(:ops, ops)
   end
 
   # ============================================================================

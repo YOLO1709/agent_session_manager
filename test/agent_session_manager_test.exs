@@ -1,5 +1,11 @@
 defmodule AgentSessionManagerTest do
-  use ExUnit.Case
+  @moduledoc """
+  Tests for the main AgentSessionManager module.
+
+  Uses Supertester for robust async testing and process isolation.
+  """
+
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Core.{Capability, Error, Event, Manifest, Run, Session}
 

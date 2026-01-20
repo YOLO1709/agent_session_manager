@@ -1,5 +1,6 @@
 defmodule AgentSessionManager.Core.RunTest do
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
+
   alias AgentSessionManager.Core.Run
 
   describe "Run struct" do

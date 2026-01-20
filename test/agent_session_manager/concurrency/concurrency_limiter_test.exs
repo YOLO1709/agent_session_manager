@@ -11,9 +11,11 @@ defmodule AgentSessionManager.Concurrency.ConcurrencyLimiterTest do
   2. Limit enforcement for max_parallel_runs
   3. Clear error messages when limits are exceeded
   4. Tracking and releasing resources
+
+  Uses Supertester for robust async testing and process isolation.
   """
 
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Concurrency.ConcurrencyLimiter
   alias AgentSessionManager.Core.Error
@@ -22,8 +24,8 @@ defmodule AgentSessionManager.Concurrency.ConcurrencyLimiterTest do
   # Setup
   # ============================================================================
 
-  setup do
-    # Start a fresh limiter for each test
+  setup ctx do
+    # Use supertester's isolated genserver setup for automatic cleanup
     {:ok, limiter} =
       ConcurrencyLimiter.start_link(
         max_parallel_sessions: 3,
@@ -31,10 +33,10 @@ defmodule AgentSessionManager.Concurrency.ConcurrencyLimiterTest do
       )
 
     on_exit(fn ->
-      if Process.alive?(limiter), do: GenServer.stop(limiter)
+      safe_stop(limiter)
     end)
 
-    {:ok, limiter: limiter}
+    Map.put(ctx, :limiter, limiter)
   end
 
   # ============================================================================
@@ -54,7 +56,7 @@ defmodule AgentSessionManager.Concurrency.ConcurrencyLimiterTest do
       assert limits.max_parallel_sessions == 10
       assert limits.max_parallel_runs == 20
 
-      GenServer.stop(limiter)
+      safe_stop(limiter)
     end
 
     test "uses default limits when not specified" do
@@ -66,7 +68,7 @@ defmodule AgentSessionManager.Concurrency.ConcurrencyLimiterTest do
       assert limits.max_parallel_sessions > 0
       assert limits.max_parallel_runs > 0
 
-      GenServer.stop(limiter)
+      safe_stop(limiter)
     end
 
     test "allows unlimited sessions when set to :infinity" do
@@ -81,7 +83,7 @@ defmodule AgentSessionManager.Concurrency.ConcurrencyLimiterTest do
       assert limits.max_parallel_sessions == :infinity
       assert limits.max_parallel_runs == 10
 
-      GenServer.stop(limiter)
+      safe_stop(limiter)
     end
   end
 
@@ -146,7 +148,7 @@ defmodule AgentSessionManager.Concurrency.ConcurrencyLimiterTest do
         assert :ok = ConcurrencyLimiter.acquire_session_slot(limiter, "session-#{i}")
       end
 
-      GenServer.stop(limiter)
+      safe_stop(limiter)
     end
   end
 

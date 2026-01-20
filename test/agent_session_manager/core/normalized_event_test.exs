@@ -7,7 +7,7 @@ defmodule AgentSessionManager.Core.NormalizedEventTest do
 
   Following TDD: these tests are written FIRST to specify the schema.
   """
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Core.Error
   alias AgentSessionManager.Core.NormalizedEvent

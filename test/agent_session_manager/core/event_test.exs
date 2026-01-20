@@ -1,5 +1,6 @@
 defmodule AgentSessionManager.Core.EventTest do
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
+
   alias AgentSessionManager.Core.Event
 
   describe "Event struct" do

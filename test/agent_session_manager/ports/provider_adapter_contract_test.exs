@@ -6,7 +6,7 @@ defmodule AgentSessionManager.Ports.ProviderAdapterContractTest do
   They use a mock adapter to verify the contract without depending on external services.
   """
 
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Core.{Capability, Error, Run, Session}
 

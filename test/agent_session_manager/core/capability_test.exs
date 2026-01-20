@@ -1,5 +1,6 @@
 defmodule AgentSessionManager.Core.CapabilityTest do
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
+
   alias AgentSessionManager.Core.Capability
 
   describe "Capability struct" do

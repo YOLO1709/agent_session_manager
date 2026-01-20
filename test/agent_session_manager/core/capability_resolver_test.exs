@@ -1,5 +1,5 @@
 defmodule AgentSessionManager.Core.CapabilityResolverTest do
-  use ExUnit.Case, async: true
+  use AgentSessionManager.SupertesterCase, async: true
 
   alias AgentSessionManager.Core.{Capability, CapabilityResolver}
 
