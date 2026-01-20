@@ -32,6 +32,9 @@ defmodule AgentSessionManager.MixProject do
 
   defp deps do
     [
+      # Core dependencies
+      {:telemetry, "~> 1.2"},
+
       # Development and documentation
       {:ex_doc, "~> 0.38", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
