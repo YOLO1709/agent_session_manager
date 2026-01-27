@@ -1,63 +1,57 @@
-# AgentSessionManager Examples
+# Examples
 
-This directory contains comprehensive examples demonstrating the AgentSessionManager library.
+This directory contains runnable examples that demonstrate AgentSessionManager functionality end-to-end.
 
-## Live Session Example
+## Available Examples
 
-The `live_session.exs` script demonstrates end-to-end usage with real SDKs and mock mode for CI and local development without credentials.
+### `live_session.exs` -- Live Session with Streaming
 
-### Features Demonstrated
+Demonstrates the full session lifecycle with a real or mock AI provider:
 
-1. **Provider selection from command line** - Choose between Claude and Codex providers
-2. **Registry setup** - Initialize registry with provider manifests
-3. **Config loading** - Load configuration from environment variables
-4. **Capability check** - Verify provider capabilities before session creation
-5. **Streaming execution** - Single session with streaming message response
-6. **Signal handling** - Clean interrupt via Ctrl+C
-7. **Event logging** - Human-readable event output to stdout
-8. **Usage summary** - Token usage and execution statistics
+- Provider selection (Claude or Codex) via command line
+- Registry initialization with provider manifests
+- Configuration loading from environment variables
+- Capability negotiation before execution
+- Streaming message response with real-time output
+- Event logging to stderr in human-readable format
+- Token usage and execution statistics
+- Clean interrupt via Ctrl+C
 
-## Quick Start
+## Running Examples
 
-### Running with Mock Mode (No Credentials Needed)
+### Quick Start (Mock Mode)
+
+No API credentials needed -- mock mode simulates provider responses:
 
 ```bash
-# Force mock mode
 mix run examples/live_session.exs --provider claude --mock
+```
 
-# Or simply run without credentials (auto-detects mock mode)
+Or simply run without credentials and mock mode is auto-detected:
+
+```bash
 mix run examples/live_session.exs --provider claude
 ```
 
-### Running with Real API Credentials
+### With Real API Credentials
 
 ```bash
-# With Claude API
+# Claude (Anthropic)
 ANTHROPIC_API_KEY=sk-ant-api03-... mix run examples/live_session.exs --provider claude
 
-# With Codex/OpenAI API
+# Codex (OpenAI)
 OPENAI_API_KEY=sk-... mix run examples/live_session.exs --provider codex
 ```
 
-## Obtaining API Credentials
+### Run All Examples
 
-### Anthropic (Claude)
+Use the provided script to run all examples in sequence:
 
-1. Create an account at [console.anthropic.com](https://console.anthropic.com)
-2. Navigate to **API Keys** in your account settings
-3. Click **Create Key** and copy your new API key
-4. Export the key: `export ANTHROPIC_API_KEY=sk-ant-api03-...`
+```bash
+./examples/run_all.sh
+```
 
-**Note**: Anthropic API keys start with `sk-ant-api03-`
-
-### OpenAI (Codex)
-
-1. Create an account at [platform.openai.com](https://platform.openai.com)
-2. Navigate to **API keys** in your account settings
-3. Click **Create new secret key** and copy it immediately (it won't be shown again)
-4. Export the key: `export OPENAI_API_KEY=sk-...`
-
-**Note**: OpenAI API keys start with `sk-`
+The script runs every example in mock mode so it works without credentials.
 
 ## Command Line Options
 
@@ -74,9 +68,7 @@ Environment Variables:
   OPENAI_API_KEY         API key for Codex (OpenAI)
 ```
 
-## Expected Output
-
-### Successful Run (Mock Mode)
+## Expected Output (Mock Mode)
 
 ```
 AgentSessionManager - Live Session Example
@@ -133,198 +125,58 @@ Step 7: Usage Summary
 Example completed successfully!
 ```
 
-### Mock Mode Auto-Detection
+## Obtaining API Credentials
 
-When no credentials are found, the example automatically falls back to mock mode:
+### Anthropic (Claude)
 
-```
-AgentSessionManager - Live Session Example
-==================================================
-Provider: claude
-Mode:     auto-detect
-==================================================
+1. Create an account at [console.anthropic.com](https://console.anthropic.com)
+2. Navigate to **API Keys** in your account settings
+3. Click **Create Key** and copy the key
+4. Export it: `export ANTHROPIC_API_KEY=sk-ant-api03-...`
 
-Step 1: Mode Detection
-----------------------------------------
-  [WARN] No ANTHROPIC_API_KEY found, running in mock mode...
-  [INFO] Running in mock mode
-  [WARN] Using mock adapter - no real API calls will be made
+### OpenAI (Codex)
 
-...
-```
-
-### Successful Run (Live Mode)
-
-When running with real credentials, you'll see actual API responses:
-
-```
-Step 1: Mode Detection
-----------------------------------------
-  [INFO] Running in live mode
-
-...
-
---- Response ---
-
-[Actual response from the AI provider streamed in real-time]
-
-Step 7: Usage Summary
---- Usage Summary ---
-
-  Input tokens:  25
-  Output tokens: 142
-  Total tokens:  167
-  Duration:      1250ms
-  Events:        6
-  Stop reason:   end_turn
-```
+1. Create an account at [platform.openai.com](https://platform.openai.com)
+2. Navigate to **API keys** in your account settings
+3. Click **Create new secret key** and copy it
+4. Export it: `export OPENAI_API_KEY=sk-...`
 
 ## Troubleshooting
 
-### Missing Credentials
+### No credentials found
 
-**Error**: No API key found, running in mock mode
+The example auto-detects mock mode when credentials are missing. To use live mode, set the appropriate environment variable. To explicitly use mock mode, pass `--mock`.
 
-**Solution**:
-- Set the appropriate environment variable
-- Or use `--mock` flag if you want mock mode explicitly
+### SDK not available
 
-```bash
-# Set credentials
-export ANTHROPIC_API_KEY=sk-ant-api03-...
+The live SDK integration requires the provider SDK dependencies. Use `--mock` for demonstration without them.
 
-# Or force mock mode
-mix run examples/live_session.exs --provider claude --mock
-```
+### Rate limiting
 
-### SDK Not Available
+If you see rate limit errors (HTTP 429), wait for the retry-after period or check your API usage dashboard.
 
-**Error**: SDK not available for claude
+### Network issues
 
-**Solution**: The live SDK integration requires additional dependencies. For now, use mock mode:
+Verify your internet connection and check that the API endpoint is accessible:
 
 ```bash
-mix run examples/live_session.exs --provider claude --mock
-```
-
-To enable live mode, add the appropriate SDK to your `mix.exs`:
-
-```elixir
-# For Claude
-{:anthropic, "~> 0.3"}
-
-# For Codex
-{:openai, "~> 0.5"}
-```
-
-Then run `mix deps.get`.
-
-### Rate Limiting
-
-**Error**: Rate limit exceeded (HTTP 429)
-
-**Symptoms**:
-- Error message mentions "rate_limit_error"
-- Response includes "retry-after" header
-
-**Solutions**:
-1. Wait for the specified retry-after period
-2. Check your API usage dashboard
-3. Consider upgrading your API tier
-4. Implement exponential backoff in production code
-
-```bash
-# Example error output
-  [ERROR] Provider error: rate_limit_error
-  [INFO] Retry after: 30 seconds
-```
-
-### Network Issues
-
-**Error**: Request timed out / Connection refused
-
-**Symptoms**:
-- Timeout errors after 30+ seconds
-- Connection refused messages
-
-**Solutions**:
-1. Check your internet connection
-2. Verify the API endpoint is accessible
-3. Check if you're behind a firewall or proxy
-4. Try increasing timeout values
-
-```bash
-# Test connectivity
 curl -I https://api.anthropic.com/v1/messages
 ```
 
-### Invalid API Key
-
-**Error**: Authentication failed / Invalid API key
-
-**Symptoms**:
-- HTTP 401 Unauthorized
-- "invalid_api_key" error code
-
-**Solutions**:
-1. Verify the API key is correct (no extra spaces)
-2. Check the key hasn't expired or been revoked
-3. Ensure you're using the correct key for the provider
-4. Regenerate the API key if needed
-
-```bash
-# Check your key format
-echo $ANTHROPIC_API_KEY | head -c 20
-# Should start with: sk-ant-api03-
-
-echo $OPENAI_API_KEY | head -c 10
-# Should start with: sk-
-```
-
-### Interrupt Handling
-
-The example supports clean interruption via Ctrl+C:
-
-1. Press `Ctrl+C` once to request graceful shutdown
-2. The current operation will attempt to complete or cancel cleanly
-3. Usage summary will be printed if possible
-4. Press `Ctrl+C` again to force immediate exit
-
 ## CI/CD Integration
 
-For CI pipelines, always use mock mode to avoid credential requirements and API costs:
+Always use mock mode in CI to avoid credential requirements and API costs:
 
 ```yaml
-# GitHub Actions example
-- name: Run example
-  run: mix run examples/live_session.exs --provider claude --mock
-
-# GitLab CI example
-test_example:
-  script:
-    - mix run examples/live_session.exs --provider claude --mock
+# GitHub Actions
+- name: Run examples
+  run: ./examples/run_all.sh
 ```
 
-## Event Types Reference
-
-The example demonstrates these event types:
-
-| Event Type | Description |
-|------------|-------------|
-| `run_started` | Execution began |
-| `message_streamed` | Streaming content chunk received |
-| `message_received` | Complete message received |
-| `token_usage_updated` | Token counts updated |
-| `run_completed` | Execution finished successfully |
-| `run_failed` | Execution failed with error |
-| `run_cancelled` | Execution was cancelled |
-
-## Contributing
-
-To add new examples:
+## Adding New Examples
 
 1. Create a new `.exs` file in this directory
-2. Follow the pattern established in `live_session.exs`
-3. Include comprehensive documentation and error handling
-4. Support both mock and live modes where applicable
-5. Update this README with your example
+2. Support both mock and live modes where applicable
+3. Include clear output formatting and error handling
+4. Add the example to `run_all.sh`
+5. Document it in this README

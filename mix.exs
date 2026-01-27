@@ -41,7 +41,7 @@ defmodule AgentSessionManager.MixProject do
       {:claude_agent_sdk, "~> 0.9.1"},
 
       # Development and documentation
-      {:ex_doc, "~> 0.38", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
 
@@ -68,11 +68,82 @@ defmodule AgentSessionManager.MixProject do
       logo: "assets/agent_session_manager.svg",
       extras: [
         "README.md",
+        "guides/getting_started.md",
+        "guides/architecture.md",
+        "guides/sessions_and_runs.md",
+        "guides/events_and_streaming.md",
+        "guides/provider_adapters.md",
+        "guides/capabilities.md",
+        "guides/concurrency.md",
+        "guides/telemetry_and_observability.md",
+        "guides/error_handling.md",
+        "guides/testing.md",
         "CHANGELOG.md",
         "LICENSE"
       ],
+      groups_for_extras: [
+        Introduction: [
+          "README.md",
+          "guides/getting_started.md",
+          "guides/architecture.md"
+        ],
+        "Core Concepts": [
+          "guides/sessions_and_runs.md",
+          "guides/events_and_streaming.md",
+          "guides/capabilities.md"
+        ],
+        Integration: [
+          "guides/provider_adapters.md",
+          "guides/concurrency.md",
+          "guides/telemetry_and_observability.md"
+        ],
+        Reference: [
+          "guides/error_handling.md",
+          "guides/testing.md",
+          "CHANGELOG.md",
+          "LICENSE"
+        ]
+      ],
       groups_for_modules: [
-        Core: [AgentSessionManager]
+        "Core Domain": [
+          AgentSessionManager,
+          AgentSessionManager.Core.Session,
+          AgentSessionManager.Core.Run,
+          AgentSessionManager.Core.Event,
+          AgentSessionManager.Core.NormalizedEvent,
+          AgentSessionManager.Core.Capability,
+          AgentSessionManager.Core.Manifest,
+          AgentSessionManager.Core.Error
+        ],
+        "Event Pipeline": [
+          AgentSessionManager.Core.EventNormalizer,
+          AgentSessionManager.Core.EventStream
+        ],
+        "Capability System": [
+          AgentSessionManager.Core.CapabilityResolver,
+          AgentSessionManager.Core.CapabilityResolver.NegotiationResult,
+          AgentSessionManager.Core.Registry
+        ],
+        Orchestration: [
+          AgentSessionManager.SessionManager
+        ],
+        "Ports (Interfaces)": [
+          AgentSessionManager.Ports.ProviderAdapter,
+          AgentSessionManager.Ports.SessionStore
+        ],
+        "Adapters (Implementations)": [
+          AgentSessionManager.Adapters.ClaudeAdapter,
+          AgentSessionManager.Adapters.CodexAdapter,
+          AgentSessionManager.Adapters.InMemorySessionStore
+        ],
+        Concurrency: [
+          AgentSessionManager.Concurrency.ConcurrencyLimiter,
+          AgentSessionManager.Concurrency.ControlOperations
+        ],
+        Observability: [
+          AgentSessionManager.Telemetry,
+          AgentSessionManager.AuditLogger
+        ]
       ]
     ]
   end
@@ -81,7 +152,7 @@ defmodule AgentSessionManager.MixProject do
     [
       name: "agent_session_manager",
       description: description(),
-      files: ~w(lib mix.exs README.md CHANGELOG.md LICENSE assets),
+      files: ~w(lib guides mix.exs README.md CHANGELOG.md LICENSE assets),
       licenses: ["MIT"],
       links: %{
         "GitHub" => @source_url,
