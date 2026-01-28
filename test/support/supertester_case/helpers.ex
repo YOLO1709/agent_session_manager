@@ -4,17 +4,13 @@ defmodule AgentSessionManager.SupertesterCase.Helpers do
   alias AgentSessionManager.Adapters.InMemorySessionStore
   alias AgentSessionManager.Test.{Fixtures, MockProviderAdapter}
 
-  import ExUnit.Callbacks, only: [on_exit: 1]
   import ExUnit.Assertions, only: [assert: 2]
+  import Supertester.OTPHelpers, only: [cleanup_on_exit: 1]
 
   @spec setup_test_store(map()) :: {:ok, pid()}
   def setup_test_store(_ctx \\ %{}) do
     {:ok, store} = InMemorySessionStore.start_link([])
-
-    on_exit(fn ->
-      if Process.alive?(store), do: GenServer.stop(store, :normal)
-    end)
-
+    cleanup_on_exit(fn -> safe_stop(store) end)
     {:ok, store}
   end
 
@@ -30,11 +26,7 @@ defmodule AgentSessionManager.SupertesterCase.Helpers do
       )
 
     {:ok, adapter} = MockProviderAdapter.start_link(adapter_opts)
-
-    on_exit(fn ->
-      if Process.alive?(adapter), do: MockProviderAdapter.stop(adapter)
-    end)
-
+    cleanup_on_exit(fn -> safe_stop(adapter) end)
     {:ok, adapter}
   end
 

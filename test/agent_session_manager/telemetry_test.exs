@@ -38,7 +38,7 @@ defmodule AgentSessionManager.TelemetryTest do
       %{pid: self(), ref: ref}
     )
 
-    on_exit(fn ->
+    cleanup_on_exit(fn ->
       try do
         :telemetry.detach(handler_id)
       rescue
@@ -61,12 +61,16 @@ defmodule AgentSessionManager.TelemetryTest do
     end
   end
 
-  defp refute_event(ref, timeout \\ 100) do
+  defp refute_event(ref, session_id, timeout \\ 100) do
     receive do
-      {:telemetry_event, ^ref, event, _measurements, metadata} ->
+      {:telemetry_event, ^ref, event, _measurements, %{session_id: ^session_id} = metadata} ->
         flunk(
           "Unexpectedly received telemetry event: #{inspect(event)} with metadata: #{inspect(metadata)}"
         )
+
+      {:telemetry_event, ^ref, _event, _measurements, _metadata} ->
+        # Event from a different session (concurrent test) — ignore and keep draining
+        refute_event(ref, session_id, timeout)
     after
       timeout -> :ok
     end
@@ -196,7 +200,7 @@ defmodule AgentSessionManager.TelemetryTest do
 
       Telemetry.emit_run_start(run, session)
 
-      refute_event(ref)
+      refute_event(ref, session.id)
     end
   end
 
@@ -270,7 +274,7 @@ defmodule AgentSessionManager.TelemetryTest do
 
       Telemetry.emit_run_end(run, session, result)
 
-      refute_event(ref)
+      refute_event(ref, session.id)
     end
   end
 
@@ -342,7 +346,7 @@ defmodule AgentSessionManager.TelemetryTest do
 
       Telemetry.emit_error(run, session, error)
 
-      refute_event(ref)
+      refute_event(ref, session.id)
     end
   end
 
@@ -410,7 +414,7 @@ defmodule AgentSessionManager.TelemetryTest do
 
       Telemetry.emit_usage_metrics(session, metrics)
 
-      refute_event(ref)
+      refute_event(ref, session.id)
     end
   end
 
@@ -596,7 +600,7 @@ defmodule AgentSessionManager.TelemetryTest do
 
       Telemetry.emit_adapter_event(run, session, event_data)
 
-      refute_event(ref)
+      refute_event(ref, session.id)
     end
   end
 end

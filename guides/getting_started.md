@@ -9,7 +9,7 @@ Add `agent_session_manager` to your `mix.exs` dependencies:
 ```elixir
 def deps do
   [
-    {:agent_session_manager, "~> 0.1.0"}
+    {:agent_session_manager, "~> 0.1.1"}
   ]
 end
 ```
@@ -140,10 +140,20 @@ mix run examples/live_session.exs --provider claude --mock
 
 # Live mode with real API
 ANTHROPIC_API_KEY=sk-ant-... mix run examples/live_session.exs --provider claude
+
+# Provider-agnostic common surface (identical code for both providers)
+mix run examples/common_surface.exs --provider claude
+
+# Claude-specific SDK features (Orchestrator, Streaming, Hooks, Agent profiles)
+mix run examples/claude_direct.exs --section orchestrator
+
+# Codex-specific SDK features (Threads, Options, Sessions)
+mix run examples/codex_direct.exs --section threads
 ```
 
 ## Next Steps
 
 - [Architecture](architecture.md) -- understand the ports & adapters design
+- [Configuration](configuration.md) -- layered config with process-local overrides
 - [Sessions and Runs](sessions_and_runs.md) -- deep dive into lifecycle management
 - [Provider Adapters](provider_adapters.md) -- configure Claude or Codex, or write your own

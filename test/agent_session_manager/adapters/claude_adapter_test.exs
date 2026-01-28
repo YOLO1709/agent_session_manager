@@ -39,10 +39,9 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
   describe "name/1" do
     test "returns 'claude' as the provider name" do
       {:ok, adapter} = ClaudeAdapter.start_link(api_key: "test-key")
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       assert ClaudeAdapter.name(adapter) == "claude"
-
-      ClaudeAdapter.stop(adapter)
     end
   end
 
@@ -53,18 +52,18 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
   describe "capabilities/1" do
     test "returns list of supported capabilities" do
       {:ok, adapter} = ClaudeAdapter.start_link(api_key: "test-key")
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       {:ok, capabilities} = ClaudeAdapter.capabilities(adapter)
 
       assert is_list(capabilities)
       assert capabilities != []
       assert Enum.all?(capabilities, &match?(%Capability{}, &1))
-
-      ClaudeAdapter.stop(adapter)
     end
 
     test "advertises streaming capability" do
       {:ok, adapter} = ClaudeAdapter.start_link(api_key: "test-key")
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       {:ok, capabilities} = ClaudeAdapter.capabilities(adapter)
 
@@ -72,12 +71,11 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
       assert streaming_cap != nil
       assert streaming_cap.type == :sampling
       assert streaming_cap.enabled == true
-
-      ClaudeAdapter.stop(adapter)
     end
 
     test "advertises tool_use capability" do
       {:ok, adapter} = ClaudeAdapter.start_link(api_key: "test-key")
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       {:ok, capabilities} = ClaudeAdapter.capabilities(adapter)
 
@@ -85,12 +83,11 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
       assert tool_cap != nil
       assert tool_cap.type == :tool
       assert tool_cap.enabled == true
-
-      ClaudeAdapter.stop(adapter)
     end
 
     test "advertises vision capability" do
       {:ok, adapter} = ClaudeAdapter.start_link(api_key: "test-key")
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       {:ok, capabilities} = ClaudeAdapter.capabilities(adapter)
 
@@ -98,12 +95,11 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
       assert vision_cap != nil
       assert vision_cap.type == :resource
       assert vision_cap.enabled == true
-
-      ClaudeAdapter.stop(adapter)
     end
 
     test "advertises system_prompts capability" do
       {:ok, adapter} = ClaudeAdapter.start_link(api_key: "test-key")
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       {:ok, capabilities} = ClaudeAdapter.capabilities(adapter)
 
@@ -111,32 +107,28 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
       assert prompt_cap != nil
       assert prompt_cap.type == :prompt
       assert prompt_cap.enabled == true
-
-      ClaudeAdapter.stop(adapter)
     end
 
     test "capabilities have valid types" do
       {:ok, adapter} = ClaudeAdapter.start_link(api_key: "test-key")
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       {:ok, capabilities} = ClaudeAdapter.capabilities(adapter)
 
       assert Enum.all?(capabilities, fn cap ->
                Capability.valid_type?(cap.type)
              end)
-
-      ClaudeAdapter.stop(adapter)
     end
 
     test "advertises interrupt support capability" do
       {:ok, adapter} = ClaudeAdapter.start_link(api_key: "test-key")
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       {:ok, capabilities} = ClaudeAdapter.capabilities(adapter)
 
       interrupt_cap = Enum.find(capabilities, &(&1.name == "interrupt"))
       assert interrupt_cap != nil
       assert interrupt_cap.enabled == true
-
-      ClaudeAdapter.stop(adapter)
     end
   end
 
@@ -147,38 +139,34 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
   describe "validate_config/2" do
     test "returns :ok for valid config with api_key" do
       {:ok, adapter} = ClaudeAdapter.start_link(api_key: "test-key")
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       config = %{api_key: "sk-ant-api03-xxxxx"}
       assert :ok = ClaudeAdapter.validate_config(adapter, config)
-
-      ClaudeAdapter.stop(adapter)
     end
 
     test "accepts config without api_key (SDK handles auth)" do
       {:ok, adapter} = ClaudeAdapter.start_link(api_key: "test-key")
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       config = %{model: "claude-sonnet-4-20250514"}
       assert :ok = ClaudeAdapter.validate_config(adapter, config)
-
-      ClaudeAdapter.stop(adapter)
     end
 
     test "accepts config with empty api_key (SDK handles auth)" do
       {:ok, adapter} = ClaudeAdapter.start_link(api_key: "test-key")
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       config = %{api_key: ""}
       assert :ok = ClaudeAdapter.validate_config(adapter, config)
-
-      ClaudeAdapter.stop(adapter)
     end
 
     test "accepts optional model configuration" do
       {:ok, adapter} = ClaudeAdapter.start_link(api_key: "test-key")
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       config = %{api_key: "sk-xxx", model: "claude-sonnet-4-20250514"}
       assert :ok = ClaudeAdapter.validate_config(adapter, config)
-
-      ClaudeAdapter.stop(adapter)
     end
   end
 
@@ -193,10 +181,8 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
       {:ok, adapter} =
         ClaudeAdapter.start_link(api_key: "test-key", sdk_module: MockSDK, sdk_pid: mock)
 
-      on_exit(fn ->
-        if Process.alive?(mock), do: MockSDK.stop(mock)
-        if Process.alive?(adapter), do: ClaudeAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(mock) end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       Map.merge(context, %{mock: mock, adapter: adapter})
     end
@@ -409,10 +395,8 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
       {:ok, adapter} =
         ClaudeAdapter.start_link(api_key: "test-key", sdk_module: MockSDK, sdk_pid: mock)
 
-      on_exit(fn ->
-        if Process.alive?(mock), do: MockSDK.stop(mock)
-        if Process.alive?(adapter), do: ClaudeAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(mock) end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       Map.merge(context, %{mock: mock, adapter: adapter})
     end
@@ -519,10 +503,8 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
       {:ok, adapter} =
         ClaudeAdapter.start_link(api_key: "test-key", sdk_module: MockSDK, sdk_pid: mock)
 
-      on_exit(fn ->
-        if Process.alive?(mock), do: MockSDK.stop(mock)
-        if Process.alive?(adapter), do: ClaudeAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(mock) end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       Map.merge(context, %{mock: mock, adapter: adapter})
     end
@@ -567,10 +549,8 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
       {:ok, adapter} =
         ClaudeAdapter.start_link(api_key: "test-key", sdk_module: MockSDK, sdk_pid: mock)
 
-      on_exit(fn ->
-        if Process.alive?(mock), do: MockSDK.stop(mock)
-        if Process.alive?(adapter), do: ClaudeAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(mock) end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       Map.merge(context, %{mock: mock, adapter: adapter})
     end
@@ -604,10 +584,8 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
       {:ok, adapter} =
         ClaudeAdapter.start_link(api_key: "test-key", sdk_module: MockSDK, sdk_pid: mock)
 
-      on_exit(fn ->
-        if Process.alive?(mock), do: MockSDK.stop(mock)
-        if Process.alive?(adapter), do: ClaudeAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(mock) end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       Map.merge(context, %{mock: mock, adapter: adapter})
     end
@@ -697,10 +675,8 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
       {:ok, adapter} =
         ClaudeAdapter.start_link(api_key: "test-key", sdk_module: MockSDK, sdk_pid: mock)
 
-      on_exit(fn ->
-        if Process.alive?(mock), do: MockSDK.stop(mock)
-        if Process.alive?(adapter), do: ClaudeAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(mock) end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       Map.merge(context, %{mock: mock, adapter: adapter})
     end
@@ -769,10 +745,8 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
       {:ok, adapter} =
         ClaudeAdapter.start_link(api_key: "test-key", sdk_module: MockSDK, sdk_pid: mock)
 
-      on_exit(fn ->
-        if Process.alive?(mock), do: MockSDK.stop(mock)
-        if Process.alive?(adapter), do: ClaudeAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(mock) end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       Map.merge(context, %{mock: mock, adapter: adapter})
     end
@@ -885,10 +859,8 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
       {:ok, adapter} =
         ClaudeAdapter.start_link(api_key: "test-key", sdk_module: MockSDK, sdk_pid: mock)
 
-      on_exit(fn ->
-        if Process.alive?(mock), do: MockSDK.stop(mock)
-        if Process.alive?(adapter), do: ClaudeAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(mock) end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       Map.merge(context, %{mock: mock, adapter: adapter})
     end
@@ -1007,10 +979,8 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
           sdk_pid: mock
         )
 
-      on_exit(fn ->
-        if Process.alive?(mock), do: ClaudeAgentSDKMock.stop(mock)
-        if Process.alive?(adapter), do: ClaudeAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(mock) end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       Map.merge(context, %{mock: mock, adapter: adapter})
     end
@@ -1166,10 +1136,8 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
           sdk_pid: mock
         )
 
-      on_exit(fn ->
-        if Process.alive?(mock), do: ClaudeAgentSDKMock.stop(mock)
-        if Process.alive?(adapter), do: ClaudeAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(mock) end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       Map.merge(context, %{mock: mock, adapter: adapter})
     end
@@ -1224,10 +1192,8 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
           sdk_pid: mock
         )
 
-      on_exit(fn ->
-        if Process.alive?(mock), do: ClaudeAgentSDKMock.stop(mock)
-        if Process.alive?(adapter), do: ClaudeAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(mock) end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       Map.merge(context, %{mock: mock, adapter: adapter})
     end
@@ -1305,10 +1271,8 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
           sdk_pid: mock
         )
 
-      on_exit(fn ->
-        if Process.alive?(mock), do: ClaudeAgentSDKMock.stop(mock)
-        if Process.alive?(adapter), do: ClaudeAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(mock) end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       Map.merge(context, %{mock: mock, adapter: adapter})
     end
@@ -1374,10 +1338,8 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapterTest do
           sdk_pid: mock
         )
 
-      on_exit(fn ->
-        if Process.alive?(mock), do: ClaudeAgentSDKMock.stop(mock)
-        if Process.alive?(adapter), do: ClaudeAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(mock) end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       Map.merge(context, %{mock: mock, adapter: adapter})
     end

@@ -235,9 +235,7 @@ defmodule AgentSessionManager.SessionManagerTest do
     {:ok, store} = setup_test_store(ctx)
     {:ok, adapter} = MockAdapter.start_link()
 
-    on_exit(fn ->
-      safe_stop(adapter)
-    end)
+    cleanup_on_exit(fn -> safe_stop(adapter) end)
 
     ctx
     |> Map.put(:store, store)

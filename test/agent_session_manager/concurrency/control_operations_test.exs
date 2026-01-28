@@ -176,20 +176,8 @@ defmodule AgentSessionManager.Concurrency.ControlOperationsTest do
     {:ok, adapter} = MockControlAdapter.start_link()
     {:ok, ops} = ControlOperations.start_link(adapter: adapter)
 
-    on_exit(fn ->
-      # Safely stop processes, ignoring if already dead
-      try do
-        if Process.alive?(ops), do: GenServer.stop(ops)
-      catch
-        :exit, _ -> :ok
-      end
-
-      try do
-        if Process.alive?(adapter), do: GenServer.stop(adapter)
-      catch
-        :exit, _ -> :ok
-      end
-    end)
+    cleanup_on_exit(fn -> safe_stop(ops) end)
+    cleanup_on_exit(fn -> safe_stop(adapter) end)
 
     {:ok, ops: ops, adapter: adapter}
   end

@@ -35,6 +35,7 @@ lib/agent_session_manager/
     concurrency_limiter.ex                -- Session/run slot management
     control_operations.ex                 -- Interrupt, cancel, pause, resume
 
+  config.ex                               -- Centralized config with process-local overrides
   telemetry.ex                            -- Telemetry event emission
   audit_logger.ex                         -- Audit log persistence
 ```

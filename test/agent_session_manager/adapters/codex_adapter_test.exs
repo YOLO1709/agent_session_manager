@@ -484,10 +484,7 @@ defmodule AgentSessionManager.Adapters.CodexAdapterTest do
       |> maybe_add(:error_message, error_message)
 
     {:ok, mock_sdk} = CodexMockSDK.start_link(mock_opts)
-
-    on_exit(fn ->
-      if Process.alive?(mock_sdk), do: CodexMockSDK.stop(mock_sdk)
-    end)
+    cleanup_on_exit(fn -> safe_stop(mock_sdk) end)
 
     # Start adapter with mock SDK
     {:ok, adapter} =
@@ -497,9 +494,7 @@ defmodule AgentSessionManager.Adapters.CodexAdapterTest do
         sdk_pid: mock_sdk
       )
 
-    on_exit(fn ->
-      if Process.alive?(adapter), do: CodexAdapter.stop(adapter)
-    end)
+    cleanup_on_exit(fn -> safe_stop(adapter) end)
 
     {:ok, adapter}
   end

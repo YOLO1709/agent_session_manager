@@ -163,6 +163,11 @@ defmodule AgentSessionManager.Adapters.CodexAdapter do
   end
 
   @impl GenServer
+  def handle_call(:name, _from, state) do
+    {:reply, "codex", state}
+  end
+
+  @impl GenServer
   def handle_call(:capabilities, _from, state) do
     {:reply, {:ok, state.capabilities}, state}
   end

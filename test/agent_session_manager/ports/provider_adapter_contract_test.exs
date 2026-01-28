@@ -248,9 +248,7 @@ defmodule AgentSessionManager.Ports.ProviderAdapterContractTest do
       {:ok, session} = Session.new(%{agent_id: "test-agent"})
       {:ok, run} = Run.new(%{session_id: session.id, input: %{prompt: "Hello"}})
 
-      on_exit(fn ->
-        if Process.alive?(adapter), do: MockAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       {:ok, adapter: adapter, session: session, run: run}
     end
@@ -323,9 +321,7 @@ defmodule AgentSessionManager.Ports.ProviderAdapterContractTest do
       {:ok, session} = Session.new(%{agent_id: "test-agent"})
       {:ok, run} = Run.new(%{session_id: session.id})
 
-      on_exit(fn ->
-        if Process.alive?(adapter), do: MockAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       {:ok, adapter: adapter, session: session, run: run}
     end
@@ -375,9 +371,7 @@ defmodule AgentSessionManager.Ports.ProviderAdapterContractTest do
       {:ok, session} = Session.new(%{agent_id: "test-agent"})
       {:ok, run} = Run.new(%{session_id: session.id})
 
-      on_exit(fn ->
-        if Process.alive?(adapter), do: MockAdapter.stop(adapter)
-      end)
+      cleanup_on_exit(fn -> safe_stop(adapter) end)
 
       {:ok, adapter: adapter, session: session, run: run}
     end

@@ -316,6 +316,40 @@ defmodule MyApp.ConcurrencyTest do
 end
 ```
 
+## Process Cleanup with `cleanup_on_exit`
+
+The project uses `Supertester.OTPHelpers.cleanup_on_exit/1` for process teardown instead of manual `on_exit` blocks. This helper safely stops a process when the test exits, handling the case where the process may already be dead:
+
+```elixir
+use AgentSessionManager.SupertesterCase, async: true
+
+setup do
+  {:ok, store} = InMemorySessionStore.start_link([])
+  cleanup_on_exit(fn -> safe_stop(store) end)
+
+  {:ok, adapter} = ClaudeAdapter.start_link(api_key: "test-key")
+  cleanup_on_exit(fn -> safe_stop(adapter) end)
+
+  {:ok, store: store, adapter: adapter}
+end
+```
+
+The `safe_stop/1` helper attempts `GenServer.stop/1` and silently catches exits if the process is already down.
+
+## Concurrent Telemetry Tests
+
+Because `Telemetry.set_enabled/1` and `AuditLogger.set_enabled/1` now use process-local overrides via `AgentSessionManager.Config`, telemetry tests can run with `async: true`. Each test process has its own override that doesn't interfere with other tests.
+
+When asserting that events are **not** emitted, filter by `session_id` to avoid false positives from events emitted by concurrent tests:
+
+```elixir
+# Good -- scoped to this test's session
+refute_event(ref, session.id)
+
+# Fragile -- may catch events from other concurrent tests
+refute_event(ref)
+```
+
 ## Tips
 
 - Use `InMemorySessionStore` for all tests -- it's fast and isolated per process
@@ -323,3 +357,5 @@ end
 - Test core types directly -- they're pure functions, no setup needed
 - Use `ExUnit.CaptureLog` to verify logging output
 - The telemetry test helpers from `:telemetry_test` make it straightforward to assert on emitted events
+- Use `cleanup_on_exit` for process teardown instead of manual `on_exit` blocks
+- Telemetry and audit logging tests can run concurrently thanks to process-local config overrides

@@ -163,6 +163,11 @@ defmodule AgentSessionManager.Adapters.ClaudeAdapter do
   end
 
   @impl GenServer
+  def handle_call(:name, _from, state) do
+    {:reply, "claude", state}
+  end
+
+  @impl GenServer
   def handle_call(:capabilities, _from, state) do
     {:reply, {:ok, state.capabilities}, state}
   end

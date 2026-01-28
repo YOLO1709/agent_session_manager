@@ -137,11 +137,10 @@ defmodule AgentSessionManager.Concurrency.IntegrationTest do
 
     {:ok, ops} = ControlOperations.start_link(adapter: adapter)
 
-    on_exit(fn ->
-      for pid <- [store, adapter, limiter, ops] do
-        safe_stop(pid)
-      end
-    end)
+    cleanup_on_exit(fn -> safe_stop(store) end)
+    cleanup_on_exit(fn -> safe_stop(adapter) end)
+    cleanup_on_exit(fn -> safe_stop(limiter) end)
+    cleanup_on_exit(fn -> safe_stop(ops) end)
 
     ctx
     |> Map.put(:store, store)

@@ -16,6 +16,62 @@ Demonstrates the full session lifecycle with a real AI provider:
 - Token usage and execution statistics
 - Clean interrupt via Ctrl+C
 
+### `common_surface.exs` -- Common Normalized Surface
+
+Demonstrates the provider-agnostic SessionManager lifecycle that works
+identically across Claude and Codex:
+
+- InMemorySessionStore and adapter startup
+- Session creation, activation, and completion
+- Multi-run execution within a single session
+- Event streaming with real-time callback
+- Event querying filtered by run ID
+- Token usage aggregation across runs
+- Event type breakdown summary
+
+**Prerequisites:** Claude or Codex authentication.
+
+```bash
+mix run examples/common_surface.exs --provider claude
+mix run examples/common_surface.exs --provider codex
+```
+
+### `claude_direct.exs` -- Claude SDK Direct Features
+
+Demonstrates Claude-specific features accessed directly via `ClaudeAgentSDK`:
+
+- **Orchestrator**: Parallel query execution and retry with backoff
+- **Streaming**: Bidirectional persistent sessions with multi-turn context
+- **Hooks**: Pre-tool-use hooks for logging and approval
+- **Agent profiles**: Constrained agent definitions with tool allowlists
+
+**Prerequisites:** Claude authentication (`claude login` or `ANTHROPIC_API_KEY`).
+
+```bash
+mix run examples/claude_direct.exs
+mix run examples/claude_direct.exs --section orchestrator
+mix run examples/claude_direct.exs --section streaming
+mix run examples/claude_direct.exs --section hooks
+mix run examples/claude_direct.exs --section agent
+```
+
+### `codex_direct.exs` -- Codex SDK Direct Features
+
+Demonstrates Codex-specific features accessed directly via `Codex`:
+
+- **Threads**: Thread lifecycle with typed event struct processing
+- **Options**: Advanced thread and global option configuration
+- **Sessions**: Listing past Codex CLI sessions
+
+**Prerequisites:** Codex authentication (`codex login` or `CODEX_API_KEY`).
+
+```bash
+mix run examples/codex_direct.exs
+mix run examples/codex_direct.exs --section threads
+mix run examples/codex_direct.exs --section options
+mix run examples/codex_direct.exs --section sessions
+```
+
 ## Running Examples
 
 ### Prerequisites

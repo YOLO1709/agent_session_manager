@@ -32,9 +32,7 @@ defmodule AgentSessionManager.Concurrency.ConcurrencyLimiterTest do
         max_parallel_runs: 5
       )
 
-    on_exit(fn ->
-      safe_stop(limiter)
-    end)
+    cleanup_on_exit(fn -> safe_stop(limiter) end)
 
     Map.put(ctx, :limiter, limiter)
   end

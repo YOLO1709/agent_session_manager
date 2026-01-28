@@ -158,18 +158,20 @@ This automatically emits:
 
 ## Enabling/Disabling Telemetry
 
+Telemetry uses the `AgentSessionManager.Config` layered configuration system. `set_enabled/1` sets a **process-local** override, so disabling telemetry in one process (e.g., a test) does not affect other processes.
+
 ```elixir
 # Check if enabled (default: true)
 Telemetry.enabled?()
 
-# Disable at runtime
+# Disable for the current process only
 Telemetry.set_enabled(false)
 
-# Or via application config
+# Or via application config (affects all processes without a local override)
 config :agent_session_manager, telemetry_enabled: false
 ```
 
-When disabled, telemetry functions return `:ok` without emitting events.
+When disabled, telemetry functions return `:ok` without emitting events. See [Configuration](configuration.md) for details on the layered resolution order.
 
 ## Audit Logging
 
@@ -219,10 +221,14 @@ This is the recommended approach for production: telemetry handles real-time met
 
 ### Enabling/Disabling Audit Logging
 
+Audit logging also uses the `AgentSessionManager.Config` layered system. `set_enabled/1` sets a **process-local** override.
+
 ```elixir
 AuditLogger.enabled?()           # default: true
-AuditLogger.set_enabled(false)   # disable at runtime
+AuditLogger.set_enabled(false)   # disable for the current process
 
-# Or via application config
+# Or via application config (affects all processes without a local override)
 config :agent_session_manager, audit_logging_enabled: false
 ```
+
+See [Configuration](configuration.md) for the full resolution order.
